@@ -48,7 +48,88 @@ export default function LoginPage() {
       </div>
 
       {/* Prawa strona — formularz */}
-      <div className="flex flex-1 flex-col items-center justify-center bg-white px-6 py-12">
+      <div className="relative flex flex-1 flex-col items-center justify-center overflow-hidden bg-gray-50 px-6 py-12">
+
+        <style>{`
+          @keyframes float-a {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+          }
+          @keyframes float-b {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+          }
+          @keyframes float-c {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-12px); }
+          }
+          @keyframes scanline {
+            0% { top: -2px; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+          }
+          .float-a { animation: float-a 5s ease-in-out infinite; }
+          .float-b { animation: float-b 6s ease-in-out infinite 1s; }
+          .float-c { animation: float-c 7s ease-in-out infinite 2.5s; }
+          .scanline { animation: scanline 4s linear infinite; }
+        `}</style>
+
+        {/* Dot grid w tle */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.04]"
+          style={{
+            backgroundImage: 'radial-gradient(circle, #374151 1px, transparent 1px)',
+            backgroundSize: '24px 24px',
+          }}
+        />
+
+        {/* Narożniki celownika */}
+        <div className="pointer-events-none absolute inset-8 select-none">
+          {/* lewy górny */}
+          <div className="absolute left-0 top-0 h-5 w-5 border-l-2 border-t-2 border-red-400/30" />
+          {/* prawy górny */}
+          <div className="absolute right-0 top-0 h-5 w-5 border-r-2 border-t-2 border-red-400/30" />
+          {/* lewy dolny */}
+          <div className="absolute bottom-0 left-0 h-5 w-5 border-b-2 border-l-2 border-red-400/30" />
+          {/* prawy dolny */}
+          <div className="absolute bottom-0 right-0 h-5 w-5 border-b-2 border-r-2 border-red-400/30" />
+        </div>
+
+        {/* Badge REC */}
+        <div className="pointer-events-none absolute right-10 top-10 flex items-center gap-1.5 select-none">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
+          </span>
+          <span className="text-xs font-bold tracking-widest text-red-500/60">REC</span>
+        </div>
+
+        {/* Scan line + glow */}
+        <div className="scanline pointer-events-none absolute left-0 h-[2px] w-full bg-gradient-to-r from-transparent via-red-500 to-transparent shadow-[0_0_12px_3px_rgba(239,68,68,0.6)]" />
+        <div className="scanline pointer-events-none absolute left-0 h-16 w-full bg-gradient-to-b from-red-500/10 to-transparent" style={{ animationDuration: '4s' }} />
+
+        {/* Pływające karty statystyk */}
+        <div className="float-a pointer-events-none absolute left-6 top-16 select-none opacity-60">
+          <div className="rounded-xl border border-amber-200 bg-white/90 px-4 py-3 shadow-md">
+            <p className="text-xs font-medium text-gray-400">Przejazdy dziś</p>
+            <p className="text-xl font-bold text-gray-700">247</p>
+          </div>
+        </div>
+
+        <div className="float-b pointer-events-none absolute bottom-28 left-8 select-none opacity-60">
+          <div className="rounded-xl border border-red-200 bg-white/90 px-4 py-3 shadow-md">
+            <p className="text-xs font-medium text-gray-400">Aktywne alerty</p>
+            <p className="text-xl font-bold text-red-500">3</p>
+          </div>
+        </div>
+
+        <div className="float-c pointer-events-none absolute right-6 top-1/3 select-none opacity-60">
+          <div className="rounded-xl border border-green-200 bg-white/90 px-4 py-3 shadow-md">
+            <p className="text-xs font-medium text-gray-400">Dostępność</p>
+            <p className="text-xl font-bold text-green-600">99.8%</p>
+          </div>
+        </div>
 
         {/* Logo mobilne */}
         <div className="mb-10 flex items-center gap-2 lg:hidden">
@@ -59,6 +140,18 @@ export default function LoginPage() {
         </div>
 
         <div className="w-full max-w-sm">
+
+          {/* Badge systemu */}
+          <div className="mb-6 flex justify-center">
+            <div className="flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3.5 py-1.5">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+              </span>
+              <span className="text-xs font-medium text-amber-700">System monitorowania · Aktywny</span>
+            </div>
+          </div>
+
           <div className="mb-8 text-center">
             <h1 className="text-2xl font-bold tracking-tight text-gray-900">Zaloguj się</h1>
             <p className="mt-1 text-sm text-gray-500">Witaj z powrotem</p>
@@ -78,9 +171,9 @@ export default function LoginPage() {
 
           {/* Divider */}
           <div className="my-6 flex items-center gap-3">
-            <div className="h-px flex-1 bg-gray-100" />
+            <div className="h-px flex-1 bg-gray-200" />
             <span className="text-xs text-gray-400">lub email i hasło</span>
-            <div className="h-px flex-1 bg-gray-100" />
+            <div className="h-px flex-1 bg-gray-200" />
           </div>
 
           {/* Formularz */}
@@ -93,7 +186,7 @@ export default function LoginPage() {
                 id="email"
                 type="email"
                 placeholder="ty@us.edu.pl"
-                className="rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm outline-none transition placeholder:text-gray-400 focus:border-indigo-400 focus:ring-3 focus:ring-indigo-100"
+                className="rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm outline-none transition placeholder:text-gray-400 focus:border-amber-400 focus:ring-3 focus:ring-amber-100"
               />
             </div>
             <div className="flex flex-col gap-1.5">
@@ -101,7 +194,7 @@ export default function LoginPage() {
                 <label htmlFor="password" className="text-sm font-medium text-gray-700">
                   Hasło
                 </label>
-                <a href="#" className="text-xs text-indigo-600 hover:text-indigo-800">
+                <a href="#" className="text-xs text-amber-600 hover:text-amber-800">
                   Zapomniałeś hasła?
                 </a>
               </div>
@@ -109,16 +202,25 @@ export default function LoginPage() {
                 id="password"
                 type="password"
                 placeholder="••••••••"
-                className="rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm outline-none transition placeholder:text-gray-400 focus:border-indigo-400 focus:ring-3 focus:ring-indigo-100"
+                className="rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm outline-none transition placeholder:text-gray-400 focus:border-amber-400 focus:ring-3 focus:ring-amber-100"
               />
             </div>
             <button
               type="submit"
-              className="mt-1 w-full rounded-xl bg-gray-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-gray-800 active:scale-[0.99]"
+              className="mt-1 w-full rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-semibold text-gray-950 transition hover:bg-amber-300 active:scale-[0.99]"
             >
               Zaloguj się
             </button>
           </form>
+
+          {/* Stopka bezpieczeństwa */}
+          <div className="mt-8 flex items-center justify-center gap-1.5 text-xs text-gray-400">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <span>Połączenie szyfrowane · TLS 1.3</span>
+          </div>
 
         </div>
       </div>
