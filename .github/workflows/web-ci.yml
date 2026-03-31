@@ -1,0 +1,35 @@
+name: Web CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "apps/web/**"
+      - "packages/shared-types/**"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "apps/web/**"
+      - "packages/shared-types/**"
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.1.42"
+
+      - name: Instalacja zależności
+        run: bun install --frozen-lockfile
+
+      - name: Sprawdzanie typów
+        run: bun run type-check --filter=@railcross/web
+
+      - name: Lintowanie
+        run: bun run lint --filter=@railcross/web
+
+      - name: Build
+        run: bun run build --filter=@railcross/web

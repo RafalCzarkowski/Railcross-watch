@@ -1,0 +1,39 @@
+# ── Node / Bun ──────────────────────────────────────────────────────────────────
+node_modules/
+.next/
+dist/
+.turbo/
+*.tsbuildinfo
+.cache/
+
+# ── Python ──────────────────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# ── Zmienne środowiskowe ─────────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ── Modele YOLO (duże pliki binarne — pobierać przez skrypt) ────────────────────
+*.pt
+*.onnx
+
+# ── Docker ──────────────────────────────────────────────────────────────────────
+*.log
+
+# ── Lokalny storage (pliki wideo, datasety, modele, wyniki) ────────────────────
+storage/uploads/
+storage/datasets/
+storage/models/
+storage/results/
+
+# ── System operacyjny ───────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
