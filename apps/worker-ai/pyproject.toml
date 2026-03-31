@@ -1,0 +1,45 @@
+[project]
+name = "worker-ai"
+version = "0.1.0"
+description = "Silnik detekcji wykroczeń na przejazdach kolejowych (YOLOv8 + OpenCV)"
+requires-python = ">=3.11"
+dependencies = [
+    # Detekcja obiektów
+    "ultralytics>=8.2",
+    # Przetwarzanie obrazu i wideo
+    "opencv-python-headless>=4.9",
+    # Azure Storage SDK
+    "azure-storage-blob>=12.19",
+    "azure-storage-queue>=12.9",
+    # Walidacja konfiguracji i schematów
+    "pydantic>=2.6",
+    "pydantic-settings>=2.2",
+    # Logowanie
+    "loguru>=0.7",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-cov",
+    "ruff",
+    "mypy",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
