@@ -3,7 +3,7 @@ WORKDIR /app
 
 # Instalacja zależności
 FROM base AS deps
-COPY package.json bun.lock turbo.json ./
+COPY package.json bun.lockb turbo.json ./
 COPY apps/web/package.json ./apps/web/package.json
 COPY packages/shared-types/package.json ./packages/shared-types/package.json
 RUN bun install --frozen-lockfile

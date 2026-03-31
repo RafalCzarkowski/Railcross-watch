@@ -3,7 +3,7 @@ WORKDIR /app
 
 # Instalacja zależności
 FROM base AS deps
-COPY package.json bun.lock turbo.json ./
+COPY package.json bun.lockb turbo.json ./
 COPY apps/api/package.json ./apps/api/package.json
 COPY packages/shared-types/package.json ./packages/shared-types/package.json
 RUN bun install --frozen-lockfile
@@ -20,6 +20,7 @@ ENV NODE_ENV=production
 
 COPY --from=builder /app/apps/api/dist ./dist
 COPY --from=builder /app/apps/api/package.json ./
+COPY --from=builder /app/node_modules ./node_modules
 
 EXPOSE 3001
 CMD ["node", "dist/main.js"]

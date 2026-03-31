@@ -5,10 +5,10 @@ WORKDIR /app
 RUN pip install uv
 
 COPY apps/worker-ai/pyproject.toml ./
-# Jeśli istnieje plik blokady uv — skopiuj też uv.lock
+# Odkomentuj gdy pojawi się uv.lock:
 # COPY apps/worker-ai/uv.lock ./
 
-RUN uv sync --frozen --no-dev --no-install-project
+RUN uv sync --no-dev --no-install-project
 
 # Obraz produkcyjny
 FROM python:3.11-slim AS runner
