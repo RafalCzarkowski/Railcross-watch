@@ -132,6 +132,39 @@ export default function LoginPage() {
           .cam-lens { animation: cam-rotate 6s ease-in-out infinite; transform-origin: 50% 80%; }
           .cam-dot { animation: cam-blink 1.2s steps(1) infinite; }
           .scanline { animation: scanline 4s linear infinite; }
+          @keyframes float-d {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-14px) rotate(6deg); }
+          }
+          @keyframes float-e {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-9px) rotate(-8deg); }
+          }
+          @keyframes float-f {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-11px) rotate(5deg); }
+          }
+          @keyframes float-g {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-7px) rotate(-4deg); }
+          }
+          .float-d { animation: float-d 7s ease-in-out infinite 0.5s; }
+          .float-e { animation: float-e 9s ease-in-out infinite 2s; }
+          .float-f { animation: float-f 6s ease-in-out infinite 4s; }
+          .float-g { animation: float-g 8s ease-in-out infinite 1.5s; }
+          @keyframes signal-1 { 0%,100%{opacity:0.9} 30%{opacity:0.2} 60%{opacity:1} }
+          @keyframes signal-2 { 0%,100%{opacity:0.9} 20%{opacity:0.1} 50%{opacity:0.3} 70%{opacity:0.9} }
+          @keyframes signal-3 { 0%,100%{opacity:0.9} 10%{opacity:0.1} 40%{opacity:0.2} 80%{opacity:0.8} }
+          .sig-1 { animation: signal-1 3s steps(1) infinite; }
+          .sig-2 { animation: signal-2 3s steps(1) infinite 0.4s; }
+          .sig-3 { animation: signal-3 3s steps(1) infinite 0.8s; }
+          @keyframes gps-ping {
+            0% { transform: scale(1); opacity: 0.8; }
+            100% { transform: scale(2.8); opacity: 0; }
+          }
+          .gps-ping { animation: gps-ping 2s ease-out infinite; }
+          .gps-ping-b { animation: gps-ping 2s ease-out infinite 0.7s; }
+          .gps-ping-c { animation: gps-ping 2s ease-out infinite 1.4s; }
         `}</style>
 
         {/* Dot grid w tle */}
@@ -203,6 +236,61 @@ export default function LoginPage() {
             <p className="text-xs font-medium text-gray-400">Dostępność</p>
             <p className="text-xl font-bold text-green-600">99.8%</p>
             <div className="noise-overlay-c absolute inset-0 rounded-xl" style={{ background: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.08) 0px, rgba(180,180,180,0.15) 1px, rgba(255,255,255,0.1) 2px, rgba(100,100,100,0.1) 3px)', backgroundSize: '100% 3px' }} />
+          </div>
+        </div>
+
+        {/* Pływająca ikona — kamera */}
+        <div className="float-d pointer-events-none absolute right-12 top-20 select-none opacity-20">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M23 7 16 12 23 17V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+          </svg>
+        </div>
+
+        {/* Pływająca ikona — rogatka */}
+        <div className="float-e pointer-events-none absolute left-12 top-1/2 select-none opacity-20">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="2" x2="12" y2="22"/><line x1="12" y1="6" x2="20" y2="6"/>
+            <path d="M12 6 Q16 4 20 6"/>
+          </svg>
+        </div>
+
+        {/* Pływająca ikona — ostrzeżenie */}
+        <div className="float-f pointer-events-none absolute right-16 bottom-40 select-none opacity-20">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </div>
+
+        {/* Pływająca ikona — sygnał transmisji z animacją zasięgu */}
+        <div className="float-g pointer-events-none absolute left-8 top-1/2 select-none opacity-25">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+            <path className="sig-3" d="M1.42 9a16 16 0 0 1 21.16 0" stroke="#374151" strokeWidth="1.5"/>
+            <path className="sig-2" d="M5 12.55a11 11 0 0 1 14.08 0" stroke="#374151" strokeWidth="1.5"/>
+            <path className="sig-1" d="M8.53 16.11a6 6 0 0 1 6.95 0" stroke="#374151" strokeWidth="1.5"/>
+            <circle cx="12" cy="20" r="1" fill="#374151"/>
+          </svg>
+        </div>
+
+        {/* GPS pingi */}
+        <div className="pointer-events-none absolute left-16 top-2/3 select-none">
+          <div className="relative flex h-3 w-3 items-center justify-center">
+            <div className="gps-ping absolute h-3 w-3 rounded-full bg-red-400 opacity-40" />
+            <div className="relative h-1.5 w-1.5 rounded-full bg-red-500 opacity-60" />
+          </div>
+        </div>
+
+        <div className="pointer-events-none absolute right-20 top-1/4 select-none">
+          <div className="relative flex h-3 w-3 items-center justify-center">
+            <div className="gps-ping-b absolute h-3 w-3 rounded-full bg-amber-400 opacity-40" />
+            <div className="relative h-1.5 w-1.5 rounded-full bg-amber-500 opacity-60" />
+          </div>
+        </div>
+
+        <div className="pointer-events-none absolute right-8 bottom-52 select-none">
+          <div className="relative flex h-3 w-3 items-center justify-center">
+            <div className="gps-ping-c absolute h-3 w-3 rounded-full bg-red-400 opacity-40" />
+            <div className="relative h-1.5 w-1.5 rounded-full bg-red-500 opacity-60" />
           </div>
         </div>
 
