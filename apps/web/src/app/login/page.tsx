@@ -38,7 +38,7 @@ export default function LoginPage() {
           <div className="text-center">
             <h2 className="text-2xl font-bold text-white">Monitoring przejazdów</h2>
             <p className="mt-2 text-sm text-gray-400">
-              Inteligentna analiza wideo z wykorzystaniem modeli YOLO
+              Inteligentna analiza wideo - wykrywaj zagrożenia szybciej niż ludzkie oko
             </p>
           </div>
         </div>
