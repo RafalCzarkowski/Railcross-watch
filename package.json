@@ -4,6 +4,7 @@
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
     "dev": "turbo run dev",
+    "dev:app": "turbo run dev --filter=@railcross/web --filter=@railcross/api",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",

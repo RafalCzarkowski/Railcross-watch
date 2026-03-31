@@ -19,3 +19,31 @@ System składa się z 3 głównych komponentów:
 
 ```text
 Web → API → Queue → Worker → Storage → API → Web
+```
+
+---
+
+## Uruchomienie
+
+### Wymagania
+
+- [Bun](https://bun.sh) >= 1.1
+- Node.js >= 20
+
+### Instalacja zależności
+
+```bash
+bun install
+```
+
+### Uruchomienie (Web + API)
+
+```bash
+bun run dev:app
+```
+
+| Aplikacja | URL |
+|-----------|-----|
+| Web | http://localhost:3000 |
+| API | http://localhost:3001 |
+| API docs (Scalar) | http://localhost:3001/api/docs |
