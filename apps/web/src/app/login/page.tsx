@@ -18,8 +18,21 @@ function useCctvTime() {
   return time
 }
 
+function useStats() {
+  const [stats, setStats] = useState({ crossings: 0, alerts: 0, uptime: '0' })
+  useEffect(() => {
+    setStats({
+      crossings: Math.floor(Math.random() * 300) + 80,
+      alerts: Math.floor(Math.random() * 8),
+      uptime: (99 + Math.random() * 0.9).toFixed(1),
+    })
+  }, [])
+  return stats
+}
+
 export default function LoginPage() {
   const time = useCctvTime()
+  const stats = useStats()
   return (
     <main className="flex min-h-screen">
 
@@ -123,12 +136,12 @@ export default function LoginPage() {
             90% { opacity: 1; }
             100% { top: 100%; opacity: 0; }
           }
-          .float-a { animation: float-a 5s ease-in-out infinite, card-static 8s steps(1) infinite; }
-          .float-b { animation: float-b 6s ease-in-out infinite 1s, card-static 11s steps(1) infinite 3s; }
-          .float-c { animation: float-c 7s ease-in-out infinite 2.5s, card-static 9s steps(1) infinite 6s; }
-          .noise-overlay { animation: static-noise 8s steps(1) infinite; }
-          .noise-overlay-b { animation: static-noise 11s steps(1) infinite 3s; }
-          .noise-overlay-c { animation: static-noise 9s steps(1) infinite 6s; }
+          .float-a { animation: float-a 5s ease-in-out infinite; }
+          .float-b { animation: float-b 6s ease-in-out infinite 1s; }
+          .float-c { animation: float-c 7s ease-in-out infinite 2.5s; }
+          .noise-overlay { display: none; }
+          .noise-overlay-b { display: none; }
+          .noise-overlay-c { display: none; }
           .cam-lens { animation: cam-rotate 6s ease-in-out infinite; transform-origin: 50% 80%; }
           .cam-dot { animation: cam-blink 1.2s steps(1) infinite; }
           .scanline { animation: scanline 4s linear infinite; }
@@ -218,7 +231,7 @@ export default function LoginPage() {
         <div className="float-a pointer-events-none absolute left-6 top-16 select-none opacity-60">
           <div className="relative overflow-hidden rounded-xl border border-amber-200 bg-white/90 px-4 py-3 shadow-md">
             <p className="text-xs font-medium text-gray-400">Przejazdy dziś</p>
-            <p className="text-xl font-bold text-gray-700">247</p>
+            <p className="text-xl font-bold text-gray-700">{stats.crossings}</p>
             <div className="noise-overlay absolute inset-0 rounded-xl" style={{ background: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.08) 0px, rgba(180,180,180,0.15) 1px, rgba(255,255,255,0.1) 2px, rgba(100,100,100,0.1) 3px)', backgroundSize: '100% 3px' }} />
           </div>
         </div>
@@ -226,7 +239,7 @@ export default function LoginPage() {
         <div className="float-b pointer-events-none absolute bottom-28 left-8 select-none opacity-60">
           <div className="relative overflow-hidden rounded-xl border border-red-200 bg-white/90 px-4 py-3 shadow-md">
             <p className="text-xs font-medium text-gray-400">Aktywne alerty</p>
-            <p className="text-xl font-bold text-red-500">3</p>
+            <p className="text-xl font-bold text-red-500">{stats.alerts}</p>
             <div className="noise-overlay-b absolute inset-0 rounded-xl" style={{ background: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.08) 0px, rgba(180,180,180,0.15) 1px, rgba(255,255,255,0.1) 2px, rgba(100,100,100,0.1) 3px)', backgroundSize: '100% 3px' }} />
           </div>
         </div>
@@ -234,7 +247,7 @@ export default function LoginPage() {
         <div className="float-c pointer-events-none absolute right-6 top-1/3 select-none opacity-60">
           <div className="relative overflow-hidden rounded-xl border border-green-200 bg-white/90 px-4 py-3 shadow-md">
             <p className="text-xs font-medium text-gray-400">Dostępność</p>
-            <p className="text-xl font-bold text-green-600">99.8%</p>
+            <p className="text-xl font-bold text-green-600">{stats.uptime}%</p>
             <div className="noise-overlay-c absolute inset-0 rounded-xl" style={{ background: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.08) 0px, rgba(180,180,180,0.15) 1px, rgba(255,255,255,0.1) 2px, rgba(100,100,100,0.1) 3px)', backgroundSize: '100% 3px' }} />
           </div>
         </div>
@@ -246,21 +259,7 @@ export default function LoginPage() {
           </svg>
         </div>
 
-        {/* Pływająca ikona — rogatka */}
-        <div className="float-e pointer-events-none absolute left-12 top-1/2 select-none opacity-20">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="12" y1="2" x2="12" y2="22"/><line x1="12" y1="6" x2="20" y2="6"/>
-            <path d="M12 6 Q16 4 20 6"/>
-          </svg>
-        </div>
 
-        {/* Pływająca ikona — ostrzeżenie */}
-        <div className="float-f pointer-events-none absolute right-16 bottom-40 select-none opacity-20">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-          </svg>
-        </div>
 
         {/* Pływająca ikona — sygnał transmisji z animacją zasięgu */}
         <div className="float-g pointer-events-none absolute left-8 top-1/2 select-none opacity-25">
@@ -348,11 +347,67 @@ export default function LoginPage() {
             </button>
           </div>
 
-          {/* Divider */}
-          <div className="my-6 flex items-center gap-3">
-            <div className="h-px flex-1 bg-gray-200" />
-            <span className="text-xs text-gray-400">lub email i hasło</span>
-            <div className="h-px flex-1 bg-gray-200" />
+          {/* Divider — przejazd z sygnalizacją */}
+          <div className="my-6">
+            <style>{`
+              @keyframes car-stop-go {
+                0%   { transform: translateX(-60px); animation-timing-function: ease-in; }
+                38%  { transform: translateX(130px); animation-timing-function: steps(1); }
+                57%  { transform: translateX(130px); animation-timing-function: ease-out; }
+                100% { transform: translateX(440px); }
+              }
+              @keyframes light-red {
+                0%, 56%, 100% { opacity: 1; }
+                57%, 99.9%    { opacity: 0.15; }
+              }
+              @keyframes light-green {
+                0%, 55%    { opacity: 0.15; }
+                56%, 99.9% { opacity: 1; }
+                100%       { opacity: 0.15; }
+              }
+              @keyframes brake-light {
+                0%, 36%, 58%, 100% { opacity: 0.3; }
+                37%, 57%           { opacity: 1; }
+              }
+              .car-stop-go  { animation: car-stop-go 5s ease-in-out infinite; }
+              .light-red    { animation: light-red 5s steps(1) infinite; }
+              .light-green  { animation: light-green 5s steps(1) infinite; }
+              .brake-light  { animation: brake-light 5s steps(1) infinite; }
+            `}</style>
+            <div className="relative h-10 overflow-hidden">
+              {/* Droga */}
+              <div className="absolute top-1/2 left-0 right-0 h-px -translate-y-1/2 bg-gray-200" />
+
+              {/* Sygnalizacja świetlna w centrum */}
+              <div className="absolute left-1/2 top-0 -translate-x-1/2 flex flex-col items-center gap-0.5">
+                {/* Słupek */}
+                <div className="w-[2px] h-3 bg-gray-300" />
+                {/* Obudowa */}
+                <div className="flex flex-col items-center gap-0.5 rounded bg-gray-800 px-[3px] py-1">
+                  <div className="light-red  h-2.5 w-2.5 rounded-full bg-red-500 shadow-[0_0_4px_2px_rgba(239,68,68,0.6)]" />
+                  <div className="light-green h-2.5 w-2.5 rounded-full bg-green-500 shadow-[0_0_4px_2px_rgba(34,197,94,0.6)]" />
+                </div>
+              </div>
+
+              {/* Auto */}
+              <div className="car-stop-go absolute top-1/2 -translate-y-[55%]">
+                <svg width="44" height="18" viewBox="0 0 44 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="2" y="7" width="40" height="9" rx="2" fill="#6366f1"/>
+                  <path d="M10 7 L13 2 H31 L34 7Z" fill="#818cf8"/>
+                  <rect x="14" y="3" width="6" height="4" rx="1" fill="#c7d2fe" opacity="0.9"/>
+                  <rect x="22" y="3" width="6" height="4" rx="1" fill="#c7d2fe" opacity="0.9"/>
+                  <circle cx="11" cy="16" r="2.5" fill="#1f2937"/>
+                  <circle cx="11" cy="16" r="1.2" fill="#4b5563"/>
+                  <circle cx="33" cy="16" r="2.5" fill="#1f2937"/>
+                  <circle cx="33" cy="16" r="1.2" fill="#4b5563"/>
+                  {/* Reflektor przedni */}
+                  <rect x="1" y="9" width="4" height="3" rx="1" fill="#fef08a"/>
+                  {/* Tylne światła — zapalają się przy hamowaniu */}
+                  <rect x="39" y="9" width="4" height="3" rx="1" fill="#ef4444" className="brake-light"/>
+                </svg>
+              </div>
+            </div>
+            <div className="mt-1 text-center text-xs text-gray-400">lub email i hasło</div>
           </div>
 
           {/* Formularz */}
