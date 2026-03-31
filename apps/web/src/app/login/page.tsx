@@ -1,4 +1,25 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+
+function useCctvTime() {
+  const [time, setTime] = useState('')
+  useEffect(() => {
+    const fmt = () => {
+      const now = new Date()
+      const d = now.toISOString().slice(0, 10)
+      const t = now.toTimeString().slice(0, 8)
+      setTime(`${d}  ${t}`)
+    }
+    fmt()
+    const id = setInterval(fmt, 1000)
+    return () => clearInterval(id)
+  }, [])
+  return time
+}
+
 export default function LoginPage() {
+  const time = useCctvTime()
   return (
     <main className="flex min-h-screen">
 
@@ -63,15 +84,53 @@ export default function LoginPage() {
             0%, 100% { transform: translateY(0px); }
             50% { transform: translateY(-12px); }
           }
+          @keyframes static-noise {
+            0%, 69%, 100% { opacity: 0; }
+            70% { opacity: 1; }
+            71% { opacity: 0.6; }
+            72% { opacity: 1; }
+            73% { opacity: 0.3; }
+            74% { opacity: 0.8; }
+            75% { opacity: 0; }
+          }
+          @keyframes card-static {
+            0%, 69%, 76%, 100% {
+              filter: none;
+              opacity: 1;
+            }
+            70%, 72%, 74% {
+              filter: grayscale(1) contrast(2) brightness(1.8);
+              opacity: 0.7;
+            }
+            71%, 73%, 75% {
+              filter: grayscale(1) brightness(0.4);
+              opacity: 0.5;
+            }
+          }
+          @keyframes cam-rotate {
+            0%   { transform: rotate(-30deg); }
+            40%  { transform: rotate(30deg); }
+            60%  { transform: rotate(30deg); }
+            100% { transform: rotate(-30deg); }
+          }
+          @keyframes cam-blink {
+            0%, 49%, 100% { opacity: 1; }
+            50%, 99%      { opacity: 0; }
+          }
           @keyframes scanline {
             0% { top: -2px; opacity: 0; }
             10% { opacity: 1; }
             90% { opacity: 1; }
             100% { top: 100%; opacity: 0; }
           }
-          .float-a { animation: float-a 5s ease-in-out infinite; }
-          .float-b { animation: float-b 6s ease-in-out infinite 1s; }
-          .float-c { animation: float-c 7s ease-in-out infinite 2.5s; }
+          .float-a { animation: float-a 5s ease-in-out infinite, card-static 8s steps(1) infinite; }
+          .float-b { animation: float-b 6s ease-in-out infinite 1s, card-static 11s steps(1) infinite 3s; }
+          .float-c { animation: float-c 7s ease-in-out infinite 2.5s, card-static 9s steps(1) infinite 6s; }
+          .noise-overlay { animation: static-noise 8s steps(1) infinite; }
+          .noise-overlay-b { animation: static-noise 11s steps(1) infinite 3s; }
+          .noise-overlay-c { animation: static-noise 9s steps(1) infinite 6s; }
+          .cam-lens { animation: cam-rotate 6s ease-in-out infinite; transform-origin: 50% 80%; }
+          .cam-dot { animation: cam-blink 1.2s steps(1) infinite; }
           .scanline { animation: scanline 4s linear infinite; }
         `}</style>
 
@@ -96,6 +155,19 @@ export default function LoginPage() {
           <div className="absolute bottom-0 right-0 h-5 w-5 border-b-2 border-r-2 border-red-400/30" />
         </div>
 
+        {/* Vignette */}
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background: 'radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.18) 100%)',
+          }}
+        />
+
+        {/* Timestamp CCTV */}
+        <div className="pointer-events-none absolute bottom-10 left-10 select-none font-mono text-xs tracking-widest text-red-500">
+          CAM-01 &nbsp; {time}
+        </div>
+
         {/* Badge REC */}
         <div className="pointer-events-none absolute right-10 top-10 flex items-center gap-1.5 select-none">
           <span className="relative flex h-2 w-2">
@@ -111,23 +183,26 @@ export default function LoginPage() {
 
         {/* Pływające karty statystyk */}
         <div className="float-a pointer-events-none absolute left-6 top-16 select-none opacity-60">
-          <div className="rounded-xl border border-amber-200 bg-white/90 px-4 py-3 shadow-md">
+          <div className="relative overflow-hidden rounded-xl border border-amber-200 bg-white/90 px-4 py-3 shadow-md">
             <p className="text-xs font-medium text-gray-400">Przejazdy dziś</p>
             <p className="text-xl font-bold text-gray-700">247</p>
+            <div className="noise-overlay absolute inset-0 rounded-xl" style={{ background: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.08) 0px, rgba(180,180,180,0.15) 1px, rgba(255,255,255,0.1) 2px, rgba(100,100,100,0.1) 3px)', backgroundSize: '100% 3px' }} />
           </div>
         </div>
 
         <div className="float-b pointer-events-none absolute bottom-28 left-8 select-none opacity-60">
-          <div className="rounded-xl border border-red-200 bg-white/90 px-4 py-3 shadow-md">
+          <div className="relative overflow-hidden rounded-xl border border-red-200 bg-white/90 px-4 py-3 shadow-md">
             <p className="text-xs font-medium text-gray-400">Aktywne alerty</p>
             <p className="text-xl font-bold text-red-500">3</p>
+            <div className="noise-overlay-b absolute inset-0 rounded-xl" style={{ background: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.08) 0px, rgba(180,180,180,0.15) 1px, rgba(255,255,255,0.1) 2px, rgba(100,100,100,0.1) 3px)', backgroundSize: '100% 3px' }} />
           </div>
         </div>
 
         <div className="float-c pointer-events-none absolute right-6 top-1/3 select-none opacity-60">
-          <div className="rounded-xl border border-green-200 bg-white/90 px-4 py-3 shadow-md">
+          <div className="relative overflow-hidden rounded-xl border border-green-200 bg-white/90 px-4 py-3 shadow-md">
             <p className="text-xs font-medium text-gray-400">Dostępność</p>
             <p className="text-xl font-bold text-green-600">99.8%</p>
+            <div className="noise-overlay-c absolute inset-0 rounded-xl" style={{ background: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.08) 0px, rgba(180,180,180,0.15) 1px, rgba(255,255,255,0.1) 2px, rgba(100,100,100,0.1) 3px)', backgroundSize: '100% 3px' }} />
           </div>
         </div>
 
@@ -154,7 +229,23 @@ export default function LoginPage() {
 
           <div className="mb-8 text-center">
             <h1 className="text-2xl font-bold tracking-tight text-gray-900">Zaloguj się</h1>
-            <p className="mt-1 text-sm text-gray-500">Witaj z powrotem</p>
+            <div className="mt-2 flex items-center justify-center gap-2">
+              {/* Miniaturowa animowana kamera */}
+              <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+                {/* Podstawa słupka */}
+                <rect x="13" y="18" width="2" height="6" rx="1" fill="#9ca3af"/>
+                {/* Obudowa kamery - obraca się */}
+                <g className="cam-lens">
+                  <rect x="7" y="10" width="14" height="9" rx="3" fill="#374151"/>
+                  <circle cx="14" cy="14" r="3.5" fill="#1f2937"/>
+                  <circle cx="14" cy="14" r="2" fill="#111827"/>
+                  <circle cx="15" cy="13" r="0.7" fill="#6366f1" opacity="0.8"/>
+                </g>
+                {/* Dioda */}
+                <circle cx="19" cy="11" r="1.5" fill="#ef4444" className="cam-dot"/>
+              </svg>
+              <span className="text-sm text-gray-500">Identyfikacja operatora</span>
+            </div>
           </div>
 
           {/* Social login */}
