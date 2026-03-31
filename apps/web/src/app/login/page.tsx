@@ -138,33 +138,101 @@ function RailIcon({ className, size = 18 }: { className?: string; size?: number 
 
 function TrainCrossing() {
   return (
-    <svg width="180" height="140" viewBox="0 0 180 140" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* Tory */}
-      <line x1="0" y1="110" x2="180" y2="110" stroke="#4f46e5" strokeWidth="3" strokeDasharray="12 6" opacity="0.6"/>
-      <line x1="0" y1="125" x2="180" y2="125" stroke="#4f46e5" strokeWidth="3" strokeDasharray="12 6" opacity="0.6"/>
-      {/* Podkłady */}
-      {[20, 50, 80, 110, 140, 165].map((x) => (
-        <rect key={x} x={x} y="105" width="6" height="25" rx="2" fill="#6366f1" opacity="0.4"/>
-      ))}
-      {/* Pociąg */}
-      <rect x="30" y="60" width="90" height="48" rx="8" fill="#4f46e5" opacity="0.9"/>
-      <rect x="36" y="66" width="78" height="30" rx="4" fill="#6366f1" opacity="0.5"/>
-      {/* Okna */}
-      {[44, 70, 96].map((x) => (
-        <rect key={x} x={x} y="71" width="20" height="18" rx="3" fill="#c7d2fe" opacity="0.9"/>
-      ))}
-      {/* Koła */}
-      <circle cx="55" cy="108" r="8" fill="#3730a3"/>
-      <circle cx="55" cy="108" r="4" fill="#6366f1"/>
-      <circle cx="100" cy="108" r="8" fill="#3730a3"/>
-      <circle cx="100" cy="108" r="4" fill="#6366f1"/>
-      {/* Rogatka */}
-      <rect x="150" y="30" width="4" height="80" rx="2" fill="#e2e8f0" opacity="0.6"/>
-      <rect x="152" y="33" width="26" height="4" rx="2" fill="#ef4444" opacity="0.8"/>
-      {/* Sygnał */}
-      <circle cx="162" cy="22" r="8" fill="#ef4444" opacity="0.9"/>
-      <circle cx="162" cy="22" r="4" fill="#fca5a5"/>
-    </svg>
+    <div className="relative">
+      <style>{`
+        @keyframes pulse-light {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.15; }
+        }
+        @keyframes scan-line {
+          0% { transform: translateY(0px); opacity: 0.6; }
+          100% { transform: translateY(140px); opacity: 0; }
+        }
+        @keyframes fov-pulse {
+          0%, 100% { opacity: 0.15; }
+          50% { opacity: 0.35; }
+        }
+        @keyframes barrier-down {
+          0%, 40% { transform: rotate(0deg); }
+          50%, 100% { transform: rotate(-75deg); }
+        }
+        .pulse-light { animation: pulse-light 1s ease-in-out infinite; }
+        .scan-line { animation: scan-line 3s linear infinite; }
+        .fov-pulse { animation: fov-pulse 2s ease-in-out infinite; }
+        .barrier { transform-origin: 2px 2px; animation: barrier-down 4s ease-in-out infinite; }
+      `}</style>
+
+      <svg width="200" height="155" viewBox="0 0 200 155" fill="none" xmlns="http://www.w3.org/2000/svg">
+
+        {/* === KAMERA CCTV — lewy górny === */}
+        {/* Słup */}
+        <rect x="18" y="40" width="4" height="70" rx="2" fill="#94a3b8" opacity="0.7"/>
+        {/* Ramię */}
+        <rect x="18" y="40" width="22" height="4" rx="2" fill="#94a3b8" opacity="0.7"/>
+        {/* Obudowa kamery */}
+        <rect x="34" y="32" width="20" height="12" rx="3" fill="#cbd5e1" opacity="0.9"/>
+        <circle cx="57" cy="38" r="4" fill="#1e293b" opacity="0.9"/>
+        <circle cx="57" cy="38" r="2" fill="#0f172a"/>
+        {/* Pole widzenia kamery — trójkąt */}
+        <polygon
+          points="57,38 110,15 110,62"
+          fill="#fbbf24"
+          className="fov-pulse"
+        />
+        {/* Linia skanowania w polu widzenia */}
+        <line
+          x1="57" y1="38" x2="110" y2="38"
+          stroke="#fbbf24"
+          strokeWidth="1.5"
+          opacity="0.8"
+          className="scan-line"
+          style={{ transformOrigin: '57px 38px' }}
+        />
+        {/* Czerwona dioda kamery */}
+        <circle cx="36" cy="34" r="2.5" fill="#ef4444" className="pulse-light"/>
+
+        {/* === TORY === */}
+        <line x1="0" y1="120" x2="200" y2="120" stroke="#4f46e5" strokeWidth="3" strokeDasharray="12 6" opacity="0.6"/>
+        <line x1="0" y1="135" x2="200" y2="135" stroke="#4f46e5" strokeWidth="3" strokeDasharray="12 6" opacity="0.6"/>
+        {[15, 45, 75, 105, 135, 165, 190].map((x) => (
+          <rect key={x} x={x} y="116" width="6" height="24" rx="2" fill="#6366f1" opacity="0.35"/>
+        ))}
+
+        {/* === POCIĄG === */}
+        <rect x="20" y="72" width="105" height="52" rx="8" fill="#4f46e5" opacity="0.9"/>
+        <rect x="26" y="78" width="93" height="32" rx="4" fill="#6366f1" opacity="0.4"/>
+        {[34, 62, 90].map((x) => (
+          <rect key={x} x={x} y="83" width="22" height="20" rx="3" fill="#c7d2fe" opacity="0.9"/>
+        ))}
+        {/* Koła */}
+        <circle cx="50" cy="122" r="9" fill="#3730a3"/>
+        <circle cx="50" cy="122" r="4.5" fill="#6366f1"/>
+        <circle cx="100" cy="122" r="9" fill="#3730a3"/>
+        <circle cx="100" cy="122" r="4.5" fill="#6366f1"/>
+
+        {/* === ROGATKA === */}
+        {/* Słup rogatki */}
+        <rect x="158" y="50" width="5" height="75" rx="2" fill="#e2e8f0" opacity="0.7"/>
+        {/* Ramię rogatki — animowane */}
+        <g className="barrier">
+          <rect x="160" y="52" width="38" height="5" rx="2" fill="#ef4444" opacity="0.9"/>
+          {/* Paski ostrzegawcze */}
+          {[0, 1, 2].map((i) => (
+            <rect key={i} x={168 + i * 10} y="52" width="5" height="5" rx="1" fill="#fbbf24" opacity="0.9"/>
+          ))}
+        </g>
+
+        {/* === SYGNALIZATOR === */}
+        {/* Obudowa */}
+        <rect x="150" y="22" width="18" height="28" rx="4" fill="#1e293b" opacity="0.9"/>
+        {/* Czerwone — miga */}
+        <circle cx="159" cy="31" r="5" fill="#ef4444" className="pulse-light"/>
+        <circle cx="159" cy="31" r="2.5" fill="#fca5a5" className="pulse-light"/>
+        {/* Zielone — wyłączone */}
+        <circle cx="159" cy="43" r="5" fill="#166534" opacity="0.5"/>
+
+      </svg>
+    </div>
   )
 }
 
