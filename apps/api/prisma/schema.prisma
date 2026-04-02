@@ -6,3 +6,28 @@ datasource db {
 generator client {
   provider = "prisma-client-js"
 }
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String?
+  name         String?
+  avatarUrl    String?
+  mfaEnabled   Boolean   @default(false)
+  mfaSecret    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  accounts     Account[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  provider          String
+  providerAccountId String
+  accessToken       String?
+  refreshToken      String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}

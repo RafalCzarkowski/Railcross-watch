@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 
 function useCctvTime() {
   const [time, setTime] = useState('')
@@ -30,16 +31,75 @@ function useStats() {
   return stats
 }
 
+const API = process.env.NEXT_PUBLIC_API_URL ?? '/api'
+
 export default function LoginPage() {
   const time = useCctvTime()
   const stats = useStats()
+  const router = useRouter()
+
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [mfaStep, setMfaStep] = useState(false)
+  const [mfaCode, setMfaCode] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const mfaInputRef = useRef<HTMLInputElement>(null)
+
+  async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+    try {
+      const res = await fetch(`${API}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email, password }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setError(data.message ?? 'Nieprawidłowe dane'); return }
+      if (data.mfaRequired) {
+        setMfaStep(true)
+        setTimeout(() => mfaInputRef.current?.focus(), 50)
+      } else {
+        router.replace('/dashboard')
+      }
+    } catch {
+      setError('Błąd połączenia')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleMfa(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+    try {
+      const res = await fetch(`${API}/auth/mfa/complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ code: mfaCode }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setError(data.message ?? 'Nieprawidłowy kod'); return }
+      router.replace('/dashboard')
+    } catch {
+      setError('Błąd połączenia')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <main className="flex min-h-screen">
 
-      {/* Lewa strona — branding */}
+
       <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-gray-950 p-12 lg:flex">
 
-        {/* Siatka w tle */}
+
         <div
           className="absolute inset-0 opacity-[0.07]"
           style={{
@@ -49,11 +109,11 @@ export default function LoginPage() {
           }}
         />
 
-        {/* Dekoracyjne okręgi */}
+
         <div className="absolute -left-32 -top-32 h-96 w-96 rounded-full bg-indigo-600 opacity-20 blur-3xl" />
         <div className="absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-violet-600 opacity-20 blur-3xl" />
 
-        {/* Logo */}
+
         <div className="relative flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10">
             <RailIcon />
@@ -61,7 +121,7 @@ export default function LoginPage() {
           <span className="text-lg font-semibold text-white">railcross-watch</span>
         </div>
 
-        {/* Środkowa grafika */}
+
         <div className="relative flex flex-col items-center justify-center gap-6">
           <div className="relative">
             <div className="absolute inset-0 rounded-3xl bg-indigo-500 opacity-20 blur-2xl" />
@@ -77,11 +137,11 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Stopka */}
+
         <p className="relative text-xs text-gray-600">&copy; 2026 railcross-watch</p>
       </div>
 
-      {/* Prawa strona — formularz */}
+
       <div className="relative flex flex-1 flex-col items-center justify-center overflow-hidden bg-gray-50 px-6 py-12">
 
         <style>{`
@@ -180,7 +240,7 @@ export default function LoginPage() {
           .gps-ping-c { animation: gps-ping 2s ease-out infinite 1.4s; }
         `}</style>
 
-        {/* Dot grid w tle */}
+
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.04]"
           style={{
@@ -189,19 +249,19 @@ export default function LoginPage() {
           }}
         />
 
-        {/* Narożniki celownika */}
+
         <div className="pointer-events-none absolute inset-8 select-none">
-          {/* lewy górny */}
+
           <div className="absolute left-0 top-0 h-5 w-5 border-l-2 border-t-2 border-red-400/30" />
-          {/* prawy górny */}
+
           <div className="absolute right-0 top-0 h-5 w-5 border-r-2 border-t-2 border-red-400/30" />
-          {/* lewy dolny */}
+
           <div className="absolute bottom-0 left-0 h-5 w-5 border-b-2 border-l-2 border-red-400/30" />
-          {/* prawy dolny */}
+
           <div className="absolute bottom-0 right-0 h-5 w-5 border-b-2 border-r-2 border-red-400/30" />
         </div>
 
-        {/* Vignette */}
+
         <div
           className="pointer-events-none absolute inset-0"
           style={{
@@ -209,12 +269,12 @@ export default function LoginPage() {
           }}
         />
 
-        {/* Timestamp CCTV */}
+
         <div className="pointer-events-none absolute bottom-10 left-10 select-none font-mono text-xs tracking-widest text-red-500">
           CAM-01 &nbsp; {time}
         </div>
 
-        {/* Badge REC */}
+
         <div className="pointer-events-none absolute right-10 top-10 flex items-center gap-1.5 select-none">
           <span className="relative flex h-2 w-2">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />
@@ -223,11 +283,11 @@ export default function LoginPage() {
           <span className="text-xs font-bold tracking-widest text-red-500/60">REC</span>
         </div>
 
-        {/* Scan line + glow */}
+
         <div className="scanline pointer-events-none absolute left-0 h-[2px] w-full bg-gradient-to-r from-transparent via-red-500 to-transparent shadow-[0_0_12px_3px_rgba(239,68,68,0.6)]" />
         <div className="scanline pointer-events-none absolute left-0 h-16 w-full bg-gradient-to-b from-red-500/10 to-transparent" style={{ animationDuration: '4s' }} />
 
-        {/* Pływające karty statystyk */}
+
         <div className="float-a pointer-events-none absolute left-6 top-16 select-none opacity-60">
           <div className="relative overflow-hidden rounded-xl border border-amber-200 bg-white/90 px-4 py-3 shadow-md">
             <p className="text-xs font-medium text-gray-400">Przejazdy dziś</p>
@@ -252,7 +312,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Pływająca ikona — kamera */}
+
         <div className="float-d pointer-events-none absolute right-12 top-20 select-none opacity-20">
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M23 7 16 12 23 17V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
@@ -261,7 +321,7 @@ export default function LoginPage() {
 
 
 
-        {/* Pływająca ikona — sygnał transmisji z animacją zasięgu */}
+
         <div className="float-g pointer-events-none absolute left-8 top-1/2 select-none opacity-25">
           <svg width="30" height="30" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
             <path className="sig-3" d="M1.42 9a16 16 0 0 1 21.16 0" stroke="#374151" strokeWidth="1.5"/>
@@ -271,7 +331,7 @@ export default function LoginPage() {
           </svg>
         </div>
 
-        {/* GPS pingi */}
+
         <div className="pointer-events-none absolute left-16 top-2/3 select-none">
           <div className="relative flex h-3 w-3 items-center justify-center">
             <div className="gps-ping absolute h-3 w-3 rounded-full bg-red-400 opacity-40" />
@@ -293,7 +353,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Logo mobilne */}
+
         <div className="mb-10 flex items-center gap-2 lg:hidden">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-950">
             <RailIcon className="text-white" size={16} />
@@ -303,7 +363,7 @@ export default function LoginPage() {
 
         <div className="w-full max-w-sm">
 
-          {/* Badge systemu */}
+
           <div className="mb-6 flex justify-center">
             <div className="flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3.5 py-1.5">
               <span className="relative flex h-2 w-2">
@@ -317,37 +377,43 @@ export default function LoginPage() {
           <div className="mb-8 text-center">
             <h1 className="text-2xl font-bold tracking-tight text-gray-900">Zaloguj się</h1>
             <div className="mt-2 flex items-center justify-center gap-2">
-              {/* Miniaturowa animowana kamera */}
+
               <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-                {/* Podstawa słupka */}
+
                 <rect x="13" y="18" width="2" height="6" rx="1" fill="#9ca3af"/>
-                {/* Obudowa kamery - obraca się */}
+
                 <g className="cam-lens">
                   <rect x="7" y="10" width="14" height="9" rx="3" fill="#374151"/>
                   <circle cx="14" cy="14" r="3.5" fill="#1f2937"/>
                   <circle cx="14" cy="14" r="2" fill="#111827"/>
                   <circle cx="15" cy="13" r="0.7" fill="#6366f1" opacity="0.8"/>
                 </g>
-                {/* Dioda */}
+
                 <circle cx="19" cy="11" r="1.5" fill="#ef4444" className="cam-dot"/>
               </svg>
               <span className="text-sm text-gray-500">Identyfikacja operatora</span>
             </div>
           </div>
 
-          {/* Social login */}
+
           <div className="flex flex-col gap-3">
-            <button className="flex w-full items-center justify-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-xs transition hover:bg-gray-50 active:scale-[0.99]">
+            <button
+              onClick={() => { window.location.href = `${process.env.NEXT_PUBLIC_OAUTH_URL ?? 'http://localhost:3001'}/auth/google`; }}
+              className="flex w-full items-center justify-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-xs transition hover:bg-gray-50 active:scale-[0.99]"
+            >
               <GoogleIcon />
               Kontynuuj z Google
             </button>
-            <button className="flex w-full items-center justify-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-xs transition hover:bg-gray-50 active:scale-[0.99]">
+            <button
+              onClick={() => { window.location.href = `${process.env.NEXT_PUBLIC_OAUTH_URL ?? 'http://localhost:3001'}/auth/github`; }}
+              className="flex w-full items-center justify-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-xs transition hover:bg-gray-50 active:scale-[0.99]"
+            >
               <GitHubIcon />
               Kontynuuj z GitHub
             </button>
           </div>
 
-          {/* Divider — przejazd z sygnalizacją */}
+
           <div className="my-6">
             <style>{`
               @keyframes car-stop-go {
@@ -375,21 +441,21 @@ export default function LoginPage() {
               .brake-light  { animation: brake-light 5s steps(1) infinite; }
             `}</style>
             <div className="relative h-10 overflow-hidden">
-              {/* Droga */}
+
               <div className="absolute top-1/2 left-0 right-0 h-px -translate-y-1/2 bg-gray-200" />
 
-              {/* Sygnalizacja świetlna w centrum */}
+
               <div className="absolute left-1/2 top-0 -translate-x-1/2 flex flex-col items-center gap-0.5">
-                {/* Słupek */}
+
                 <div className="w-[2px] h-3 bg-gray-300" />
-                {/* Obudowa */}
+
                 <div className="flex flex-col items-center gap-0.5 rounded bg-gray-800 px-[3px] py-1">
                   <div className="light-red  h-2.5 w-2.5 rounded-full bg-red-500 shadow-[0_0_4px_2px_rgba(239,68,68,0.6)]" />
                   <div className="light-green h-2.5 w-2.5 rounded-full bg-green-500 shadow-[0_0_4px_2px_rgba(34,197,94,0.6)]" />
                 </div>
               </div>
 
-              {/* Auto */}
+
               <div className="car-stop-go absolute top-1/2 -translate-y-[55%]">
                 <svg width="44" height="18" viewBox="0 0 44 18" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <rect x="2" y="7" width="40" height="9" rx="2" fill="#6366f1"/>
@@ -400,9 +466,9 @@ export default function LoginPage() {
                   <circle cx="11" cy="16" r="1.2" fill="#4b5563"/>
                   <circle cx="33" cy="16" r="2.5" fill="#1f2937"/>
                   <circle cx="33" cy="16" r="1.2" fill="#4b5563"/>
-                  {/* Reflektor przedni */}
+
                   <rect x="1" y="9" width="4" height="3" rx="1" fill="#fef08a"/>
-                  {/* Tylne światła — zapalają się przy hamowaniu */}
+
                   <rect x="39" y="9" width="4" height="3" rx="1" fill="#ef4444" className="brake-light"/>
                 </svg>
               </div>
@@ -410,44 +476,85 @@ export default function LoginPage() {
             <div className="mt-1 text-center text-xs text-gray-400">lub email i hasło</div>
           </div>
 
-          {/* Formularz */}
-          <form className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="email" className="text-sm font-medium text-gray-700">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                placeholder="ty@us.edu.pl"
-                className="rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm outline-none transition placeholder:text-gray-400 focus:border-amber-400 focus:ring-3 focus:ring-amber-100"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <label htmlFor="password" className="text-sm font-medium text-gray-700">
-                  Hasło
-                </label>
-                <a href="#" className="text-xs text-amber-600 hover:text-amber-800">
-                  Zapomniałeś hasła?
-                </a>
-              </div>
-              <input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                className="rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm outline-none transition placeholder:text-gray-400 focus:border-amber-400 focus:ring-3 focus:ring-amber-100"
-              />
-            </div>
-            <button
-              type="submit"
-              className="mt-1 w-full rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-semibold text-gray-950 transition hover:bg-amber-300 active:scale-[0.99]"
-            >
-              Zaloguj się
-            </button>
-          </form>
 
-          {/* Stopka bezpieczeństwa */}
+          {mfaStep ? (
+            <form onSubmit={handleMfa} className="flex flex-col gap-4">
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                Podaj 6-cyfrowy kod z aplikacji uwierzytelniającej.
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="mfa-code" className="text-sm font-medium text-gray-700">
+                  Kod weryfikacyjny
+                </label>
+                <input
+                  id="mfa-code"
+                  ref={mfaInputRef}
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="000000"
+                  value={mfaCode}
+                  onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ''))}
+                  className="rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-center font-mono text-lg tracking-widest outline-none transition placeholder:text-gray-300 focus:border-amber-400 focus:ring-3 focus:ring-amber-100"
+                />
+              </div>
+              {error && <p className="text-sm text-red-600">{error}</p>}
+              <button
+                type="submit"
+                disabled={loading || mfaCode.length !== 6}
+                className="mt-1 w-full rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-semibold text-gray-950 transition hover:bg-amber-300 active:scale-[0.99] disabled:opacity-50"
+              >
+                {loading ? 'Weryfikacja…' : 'Potwierdź'}
+              </button>
+              <button type="button" onClick={() => { setMfaStep(false); setError('') }} className="text-xs text-gray-400 hover:text-gray-600">
+                ← Wróć
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleLogin} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="email" className="text-sm font-medium text-gray-700">
+                  Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  placeholder="ty@us.edu.pl"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm outline-none transition placeholder:text-gray-400 focus:border-amber-400 focus:ring-3 focus:ring-amber-100"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <label htmlFor="password" className="text-sm font-medium text-gray-700">
+                    Hasło
+                  </label>
+                  <a href="#" className="text-xs text-amber-600 hover:text-amber-800">
+                    Zapomniałeś hasła?
+                  </a>
+                </div>
+                <input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm outline-none transition placeholder:text-gray-400 focus:border-amber-400 focus:ring-3 focus:ring-amber-100"
+                />
+              </div>
+              {error && <p className="text-sm text-red-600">{error}</p>}
+              <button
+                type="submit"
+                disabled={loading}
+                className="mt-1 w-full rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-semibold text-gray-950 transition hover:bg-amber-300 active:scale-[0.99] disabled:opacity-50"
+              >
+                {loading ? 'Logowanie…' : 'Zaloguj się'}
+              </button>
+            </form>
+          )}
+
+
           <div className="mt-8 flex items-center justify-center gap-1.5 text-xs text-gray-400">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
@@ -500,22 +607,22 @@ function TrainCrossing() {
 
       <svg width="200" height="155" viewBox="0 0 200 155" fill="none" xmlns="http://www.w3.org/2000/svg">
 
-        {/* === KAMERA CCTV — lewy górny === */}
-        {/* Słup */}
+
+
         <rect x="18" y="40" width="4" height="70" rx="2" fill="#94a3b8" opacity="0.7"/>
-        {/* Ramię */}
+
         <rect x="18" y="40" width="22" height="4" rx="2" fill="#94a3b8" opacity="0.7"/>
-        {/* Obudowa kamery */}
+
         <rect x="34" y="32" width="20" height="12" rx="3" fill="#cbd5e1" opacity="0.9"/>
         <circle cx="57" cy="38" r="4" fill="#1e293b" opacity="0.9"/>
         <circle cx="57" cy="38" r="2" fill="#0f172a"/>
-        {/* Pole widzenia kamery — trójkąt */}
+
         <polygon
           points="57,38 110,15 110,62"
           fill="#fbbf24"
           className="fov-pulse"
         />
-        {/* Linia skanowania w polu widzenia */}
+
         <line
           x1="57" y1="38" x2="110" y2="38"
           stroke="#fbbf24"
@@ -524,47 +631,47 @@ function TrainCrossing() {
           className="scan-line"
           style={{ transformOrigin: '57px 38px' }}
         />
-        {/* Czerwona dioda kamery */}
+
         <circle cx="36" cy="34" r="2.5" fill="#ef4444" className="pulse-light"/>
 
-        {/* === TORY === */}
+
         <line x1="0" y1="120" x2="200" y2="120" stroke="#4f46e5" strokeWidth="3" strokeDasharray="12 6" opacity="0.6"/>
         <line x1="0" y1="135" x2="200" y2="135" stroke="#4f46e5" strokeWidth="3" strokeDasharray="12 6" opacity="0.6"/>
         {[15, 45, 75, 105, 135, 165, 190].map((x) => (
           <rect key={x} x={x} y="116" width="6" height="24" rx="2" fill="#6366f1" opacity="0.35"/>
         ))}
 
-        {/* === POCIĄG === */}
+
         <rect x="20" y="72" width="105" height="52" rx="8" fill="#4f46e5" opacity="0.9"/>
         <rect x="26" y="78" width="93" height="32" rx="4" fill="#6366f1" opacity="0.4"/>
         {[34, 62, 90].map((x) => (
           <rect key={x} x={x} y="83" width="22" height="20" rx="3" fill="#c7d2fe" opacity="0.9"/>
         ))}
-        {/* Koła */}
+
         <circle cx="50" cy="122" r="9" fill="#3730a3"/>
         <circle cx="50" cy="122" r="4.5" fill="#6366f1"/>
         <circle cx="100" cy="122" r="9" fill="#3730a3"/>
         <circle cx="100" cy="122" r="4.5" fill="#6366f1"/>
 
-        {/* === ROGATKA === */}
-        {/* Słup rogatki */}
+
+
         <rect x="158" y="50" width="5" height="75" rx="2" fill="#e2e8f0" opacity="0.7"/>
-        {/* Ramię rogatki — animowane */}
+
         <g className="barrier">
           <rect x="160" y="52" width="38" height="5" rx="2" fill="#ef4444" opacity="0.9"/>
-          {/* Paski ostrzegawcze */}
+
           {[0, 1, 2].map((i) => (
             <rect key={i} x={168 + i * 10} y="52" width="5" height="5" rx="1" fill="#fbbf24" opacity="0.9"/>
           ))}
         </g>
 
-        {/* === SYGNALIZATOR === */}
-        {/* Obudowa */}
+
+
         <rect x="150" y="22" width="18" height="28" rx="4" fill="#1e293b" opacity="0.9"/>
-        {/* Czerwone — miga */}
+
         <circle cx="159" cy="31" r="5" fill="#ef4444" className="pulse-light"/>
         <circle cx="159" cy="31" r="2.5" fill="#fca5a5" className="pulse-light"/>
-        {/* Zielone — wyłączone */}
+
         <circle cx="159" cy="43" r="5" fill="#166534" opacity="0.5"/>
 
       </svg>
