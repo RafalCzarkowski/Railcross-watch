@@ -27,8 +27,15 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     const blacklisted = await this.redis.client.exists(`bl:${payload.jti}`);
     if (blacklisted) throw new UnauthorizedException('Token revoked');
 
-    const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
+    const db = this.prisma.user as any;
+    const user = await db.findUnique({ where: { id: payload.sub } });
     if (!user) throw new UnauthorizedException('User not found');
+    if (user.blockedAt) {
+      throw new UnauthorizedException('Konto zostało zablokowane przez administratora');
+    }
+    if (user.approvalStatus !== 'APPROVED') {
+      throw new UnauthorizedException('Konto oczekuje na akceptację administratora');
+    }
     return user;
   }
 }

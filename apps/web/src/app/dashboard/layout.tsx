@@ -9,6 +9,9 @@ interface Me {
   email: string;
   name: string | null;
   avatarUrl: string | null;
+  role: 'SUPERADMIN' | 'ADMIN' | 'USER';
+  approvalStatus: 'PENDING' | 'APPROVED';
+  blockedAt?: string | null;
 }
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? '/api';
@@ -70,6 +73,16 @@ const navItems = [
     ),
   },
   {
+    href: '/dashboard/videos',
+    label: 'Nagrania',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-5 w-5">
+        <path d="M15 10l4.553-2.069A1 1 0 0 1 21 8.82v6.36a1 1 0 0 1-1.447.89L15 14" />
+        <rect x="1" y="6" width="15" height="12" rx="2" />
+      </svg>
+    ),
+  },
+  {
     href: '/dashboard/reports',
     label: 'Raporty',
     icon: (
@@ -77,6 +90,32 @@ const navItems = [
         <line x1="18" y1="20" x2="18" y2="10" />
         <line x1="12" y1="20" x2="12" y2="4" />
         <line x1="6" y1="20" x2="6" y2="14" />
+      </svg>
+    ),
+  },
+  {
+    href: '/dashboard/logs',
+    label: 'Logi',
+    adminOnly: true,
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-5 w-5">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <polyline points="14 2 14 8 20 8" />
+        <line x1="16" y1="13" x2="8" y2="13" />
+        <line x1="16" y1="17" x2="8" y2="17" />
+        <polyline points="10 9 9 9 8 9" />
+      </svg>
+    ),
+  },
+  {
+    href: '/dashboard/users',
+    label: 'Użytkownicy',
+    adminOnly: true,
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-5 w-5">
+        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+        <circle cx="8.5" cy="7" r="4" />
+        <path d="M20 8v6M17 11h6" />
       </svg>
     ),
   },
@@ -97,6 +136,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const [user, setUser] = useState<Me | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const visibleNavItems = navItems.filter((item) => !item.adminOnly || user?.role === 'ADMIN' || user?.role === 'SUPERADMIN');
 
   useEffect(() => {
     fetch(`${API}/auth/me`, { credentials: 'include' })
@@ -152,7 +193,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             Monitorowanie
           </p>
           <ul className="space-y-0.5">
-            {navItems.map((item) => {
+            {visibleNavItems.map((item) => {
               const active = pathname === item.href;
               return (
                 <li key={item.href}>
@@ -215,7 +256,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           <div className="flex-1">
             <span className="text-sm font-medium text-gray-400">
-              {navItems.find((n) => n.href === pathname)?.label ?? 'Dashboard'}
+              {visibleNavItems.find((n) => n.href === pathname)?.label ?? 'Dashboard'}
             </span>
           </div>
 
@@ -227,7 +268,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="flex items-center gap-3">
             <div className="hidden flex-col items-end sm:flex">
               <span className="text-sm font-medium text-white">{user?.name ?? user?.email}</span>
-              <span className="text-xs text-gray-500">Administrator</span>
+              <span className="text-xs text-gray-500">
+                {user?.role === 'SUPERADMIN' ? 'Superadmin' : user?.role === 'ADMIN' ? 'Administrator' : 'Operator'}
+              </span>
             </div>
             {user?.avatarUrl ? (
               <img src={user.avatarUrl} alt="" className="h-8 w-8 rounded-full object-cover ring-2 ring-amber-500/40" />

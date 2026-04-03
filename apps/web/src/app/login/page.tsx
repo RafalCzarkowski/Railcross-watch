@@ -1,7 +1,17 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (container: string | HTMLElement, options: Record<string, unknown>) => string
+      reset: (widgetId?: string) => void
+      remove: (widgetId?: string) => void
+    }
+  }
+}
 
 function useCctvTime() {
   const [time, setTime] = useState('')
@@ -32,30 +42,104 @@ function useStats() {
 }
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? '/api'
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? ''
+
+function TurnstileWidget({
+  onVerify,
+}: {
+  onVerify: (token: string) => void
+}) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const widgetIdRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!TURNSTILE_SITE_KEY || !containerRef.current) return
+
+    let cancelled = false
+
+    const renderWidget = () => {
+      if (cancelled || !containerRef.current || !window.turnstile || widgetIdRef.current) return
+      widgetIdRef.current = window.turnstile.render(containerRef.current, {
+        sitekey: TURNSTILE_SITE_KEY,
+        callback: (token: string) => onVerify(token),
+        'expired-callback': () => onVerify(''),
+        'error-callback': () => onVerify(''),
+        theme: 'light',
+      })
+    }
+
+    if (window.turnstile) {
+      renderWidget()
+    } else {
+      const existingScript = document.querySelector<HTMLScriptElement>('script[data-turnstile="true"]')
+      if (!existingScript) {
+        const script = document.createElement('script')
+        script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
+        script.async = true
+        script.defer = true
+        script.dataset.turnstile = 'true'
+        script.onload = renderWidget
+        document.head.appendChild(script)
+      } else {
+        existingScript.addEventListener('load', renderWidget)
+      }
+    }
+
+    return () => {
+      cancelled = true
+      if (widgetIdRef.current && window.turnstile) {
+        window.turnstile.remove(widgetIdRef.current)
+        widgetIdRef.current = null
+      }
+    }
+  }, [onVerify])
+
+  return <div ref={containerRef} />
+}
 
 export default function LoginPage() {
   const time = useCctvTime()
   const stats = useStats()
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [mfaStep, setMfaStep] = useState(false)
   const [mfaCode, setMfaCode] = useState('')
+  const [captchaToken, setCaptchaToken] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const mfaInputRef = useRef<HTMLInputElement>(null)
+  const registered = searchParams.get('registered') === '1'
+  const pendingApproval = searchParams.get('approval') === 'pending'
+  const resetSession = searchParams.get('reset') === '1'
+  const invalidPath = searchParams.get('reason') === 'invalid-path'
+
+  useEffect(() => {
+    if (!resetSession) return
+
+    sessionStorage.clear()
+    localStorage.clear()
+    fetch(`${API}/auth/logout`, { method: 'POST', credentials: 'include' }).catch(() => {})
+  }, [resetSession])
 
   async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError('')
+
+    if (!captchaToken) {
+      setError('Potwierdź CAPTCHA')
+      return
+    }
+
     setLoading(true)
     try {
       const res = await fetch(`${API}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, captchaToken }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.message ?? 'Nieprawidłowe dane'); return }
@@ -68,6 +152,8 @@ export default function LoginPage() {
     } catch {
       setError('Błąd połączenia')
     } finally {
+      setCaptchaToken('')
+      window.turnstile?.reset()
       setLoading(false)
     }
   }
@@ -395,6 +481,20 @@ export default function LoginPage() {
             </div>
           </div>
 
+          {(registered || pendingApproval) && (
+            <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              {registered
+                ? 'Konto zostało utworzone. Zaczekaj na akceptację administratora, zanim się zalogujesz.'
+                : 'To konto nie zostało jeszcze zaakceptowane przez administratora.'}
+            </div>
+          )}
+
+          {invalidPath && (
+            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              Sesja została wyczyszczona po wejściu na niedozwolony adres. Zaloguj się ponownie.
+            </div>
+          )}
+
 
           <div className="flex flex-col gap-3">
             <button
@@ -543,16 +643,30 @@ export default function LoginPage() {
                   className="rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm outline-none transition placeholder:text-gray-400 focus:border-amber-400 focus:ring-3 focus:ring-amber-100"
                 />
               </div>
+              <div className="rounded-xl border border-gray-200 bg-white px-3 py-3">
+                {TURNSTILE_SITE_KEY ? (
+                  <TurnstileWidget onVerify={setCaptchaToken} />
+                ) : (
+                  <p className="text-sm text-red-600">Brak konfiguracji CAPTCHA po stronie frontendu.</p>
+                )}
+              </div>
               {error && <p className="text-sm text-red-600">{error}</p>}
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !captchaToken}
                 className="mt-1 w-full rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-semibold text-gray-950 transition hover:bg-amber-300 active:scale-[0.99] disabled:opacity-50"
               >
                 {loading ? 'Logowanie…' : 'Zaloguj się'}
               </button>
             </form>
           )}
+
+          <div className="mt-5 text-center text-sm text-gray-500">
+            Nie masz konta?{' '}
+            <a href="/register" className="font-medium text-amber-700 hover:text-amber-800">
+              Zarejestruj się
+            </a>
+          </div>
 
 
           <div className="mt-8 flex items-center justify-center gap-1.5 text-xs text-gray-400">

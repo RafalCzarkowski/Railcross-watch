@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
   Post,
   Query,
   Req,
@@ -41,7 +42,13 @@ export class AuthController {
   @ApiResponse({ status: 409, description: 'Email already registered' })
   async register(@Body() dto: RegisterDto) {
     const user = await this.authService.register(dto);
-    return { id: user.id, email: user.email, name: user.name };
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      approvalStatus: (user as any).approvalStatus ?? 'PENDING',
+      role: (user as any).role ?? 'USER',
+    };
   }
 
   @Post('login')
@@ -52,8 +59,10 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   async login(
     @Body() dto: LoginDto,
+    @Req() req: any,
     @Res({ passthrough: true }) reply: FastifyReply,
   ) {
+    await this.authService.verifyCaptcha(dto.captchaToken, req.ip);
     const user = await this.authService.validateLocalUser(dto.email, dto.password);
     if ((user as any).mfaEnabled) {
       const partialToken = this.authService.signPartialToken(user.id);
@@ -81,6 +90,9 @@ export class AuthController {
   ) {
     const user = await this.authService.handleGithubCallback(code);
     const frontendUrl = this.config.get('FRONTEND_URL', 'http://localhost:3000');
+    if (!this.authService.isApproved(user)) {
+      return reply.status(302).header('Location', `${frontendUrl}/login?approval=pending`).send();
+    }
     if ((user as any).mfaEnabled) {
       const partialToken = this.authService.signPartialToken(user.id);
       return reply
@@ -108,6 +120,9 @@ export class AuthController {
   ) {
     const user = await this.authService.handleGoogleCallback(code);
     const frontendUrl = this.config.get('FRONTEND_URL', 'http://localhost:3000');
+    if (!this.authService.isApproved(user)) {
+      return reply.status(302).header('Location', `${frontendUrl}/login?approval=pending`).send();
+    }
     if ((user as any).mfaEnabled) {
       const partialToken = this.authService.signPartialToken(user.id);
       return reply
@@ -147,8 +162,57 @@ export class AuthController {
       email: user.email,
       name: user.name,
       avatarUrl: user.avatarUrl,
+      role: (user as any).role ?? 'USER',
+      approvalStatus: (user as any).approvalStatus ?? 'PENDING',
+      approvedAt: (user as any).approvedAt ?? null,
       mfaEnabled: (user as any).mfaEnabled ?? false,
     };
+  }
+
+  @Get('admin/pending-users')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'List users waiting for admin approval' })
+  async pendingUsers(@CurrentUser() user: User) {
+    return this.authService.listPendingUsers(user.id);
+  }
+
+  @Get('admin/users')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'List approved users and roles' })
+  async approvedUsers(@CurrentUser() user: User) {
+    return this.authService.listApprovedUsers(user.id);
+  }
+
+  @Post('admin/users/:userId/approve')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Approve user account' })
+  async approveUser(@CurrentUser() user: User, @Param('userId') userId: string) {
+    return this.authService.approveUser(user.id, userId);
+  }
+
+  @Post('admin/users/:userId/block')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Block user account' })
+  async blockUser(@CurrentUser() user: User, @Param('userId') userId: string) {
+    return this.authService.blockUser(user.id, userId);
+  }
+
+  @Post('admin/users/:userId/unblock')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Unblock user account' })
+  async unblockUser(@CurrentUser() user: User, @Param('userId') userId: string) {
+    return this.authService.unblockUser(user.id, userId);
+  }
+
+  @Post('superadmin/users/:userId/grant-admin')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Grant admin role to approved user' })
+  async grantAdmin(@CurrentUser() user: User, @Param('userId') userId: string) {
+    return this.authService.grantAdminRole(user.id, userId);
   }
 
   @Post('mfa/complete')

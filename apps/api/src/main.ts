@@ -3,9 +3,11 @@ import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
 import fastifyCookie from '@fastify/cookie';
+import fastifyMultipart from '@fastify/multipart';
 import fastifyPassport from '@fastify/passport';
 import fastifySecureSession from '@fastify/secure-session';
 import { AppModule } from './app.module';
+import { AuthService } from './auth/auth.service';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
@@ -14,6 +16,7 @@ async function bootstrap() {
   );
 
   await app.register(fastifyCookie as any);
+  await app.register(fastifyMultipart as any, { limits: { fileSize: 2 * 1024 * 1024 * 1024 } });
   await app.register(fastifySecureSession as any, {
     key: Buffer.from(
       (process.env.API_JWT_SECRET ?? 'default-secret-32-chars-minimum!!').padEnd(32).slice(0, 32),
@@ -31,6 +34,8 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
     }),
   );
+
+  await app.get(AuthService).ensureSuperAdmin();
 
   const config = new DocumentBuilder()
     .setTitle('railcross-watch API')

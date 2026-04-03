@@ -1,23 +1,35 @@
 import {
+  BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import * as qrcode from 'qrcode';
 import * as speakeasy from 'speakeasy';
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const qrcode = require('qrcode') as typeof import('qrcode');
 import { User } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
+import { LogsService } from '../logs/logs.service';
 import { RegisterDto } from './dto/register.dto';
 import { JwtPayload } from './types/jwt-payload.interface';
 import { OAuthProfile } from './types/oauth-profile.interface';
 
 type UserWithMfa = User & { mfaEnabled: boolean; mfaSecret: string | null };
+type UserAccess = User & {
+  role: 'SUPERADMIN' | 'ADMIN' | 'USER';
+  approvalStatus: 'PENDING' | 'APPROVED';
+  approvedAt: Date | null;
+  blockedAt: Date | null;
+};
+
+const PENDING_APPROVAL_MESSAGE = 'Konto oczekuje na akceptację administratora';
+const BLOCKED_ACCOUNT_MESSAGE = 'Konto zostało zablokowane przez administratora';
 
 @Injectable()
 export class AuthService {
@@ -26,28 +38,74 @@ export class AuthService {
     private readonly redis: RedisService,
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
+    private readonly logs: LogsService,
   ) {}
 
   async register(dto: RegisterDto): Promise<User> {
     const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (existing) throw new ConflictException('Email already registered');
     const passwordHash = await bcrypt.hash(dto.password, 12);
-    return this.prisma.user.create({
-      data: { email: dto.email, passwordHash, name: dto.name },
+    const db = this.prisma.user as any;
+    const user = await db.create({
+      data: {
+        email: dto.email,
+        passwordHash,
+        name: dto.name,
+        role: 'USER',
+        approvalStatus: 'PENDING',
+        approvedAt: null,
+      },
     });
+    await this.logs.log('USER_REGISTER', `Nowe konto: ${user.email} — oczekuje na zatwierdzenie`, user.id, user.id, 'USER');
+    return user;
   }
 
   async validateLocalUser(email: string, password: string): Promise<User> {
-    const user = await this.prisma.user.findUnique({ where: { email } });
+    const db = this.prisma.user as any;
+    const user: UserAccess | null = await db.findUnique({ where: { email } });
     if (!user || !user.passwordHash) throw new UnauthorizedException('Invalid credentials');
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) throw new UnauthorizedException('Invalid credentials');
+    this.assertNotBlocked(user);
+    this.assertApproved(user);
     return user;
+  }
+
+  isApproved(user: UserAccess | User): boolean {
+    return (user as UserAccess).approvalStatus === 'APPROVED';
+  }
+
+  isBlocked(user: UserAccess | User): boolean {
+    return Boolean((user as UserAccess).blockedAt);
   }
 
   signToken(user: User): string {
     const payload: JwtPayload = { sub: user.id, email: user.email, jti: randomUUID() };
     return this.jwtService.sign(payload);
+  }
+
+  async verifyCaptcha(token: string, remoteIp?: string): Promise<void> {
+    if (!token) {
+      throw new BadRequestException('Captcha verification is required');
+    }
+
+    const secret = this.config.get<string>('TURNSTILE_SECRET_KEY');
+    if (!secret) {
+      throw new BadRequestException('Captcha is not configured on the server');
+    }
+
+    const body = new URLSearchParams({ secret, response: token });
+    if (remoteIp) body.set('remoteip', remoteIp);
+
+    const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+    });
+
+    if (!response.ok) throw new UnauthorizedException('Captcha verification failed');
+    const data = (await response.json()) as { success?: boolean };
+    if (!data.success) throw new UnauthorizedException('Captcha verification failed');
   }
 
   getCookieOptions() {
@@ -56,7 +114,6 @@ export class AuthService {
       secure: this.config.get('NODE_ENV') === 'production',
       sameSite: 'lax' as const,
       path: '/',
-      maxAge: Number(this.config.get('JWT_EXPIRATION_SECONDS', 86400)),
     };
   }
 
@@ -72,6 +129,7 @@ export class AuthService {
       encoding: 'base32',
     });
     const qrCodeDataUrl = await qrcode.toDataURL(otpAuthUrl);
+    await this.logs.log('MFA_SETUP_STARTED', `Rozpoczęto konfigurację MFA dla: ${user.email}`, user.id, user.id, 'USER');
     return { secret, qrCodeDataUrl };
   }
 
@@ -82,6 +140,7 @@ export class AuthService {
     const valid = speakeasy.totp.verify({ secret: user.mfaSecret, encoding: 'base32', token: code });
     if (!valid) throw new UnauthorizedException('Invalid TOTP code');
     await db.update({ where: { id: userId }, data: { mfaEnabled: true } });
+    await this.logs.log('MFA_ENABLED', `Włączono weryfikację dwuetapową (MFA) dla: ${user.email}`, userId, userId, 'USER');
   }
 
   async disableMfa(userId: string, code: string): Promise<void> {
@@ -91,6 +150,7 @@ export class AuthService {
     const valid = speakeasy.totp.verify({ secret: user.mfaSecret, encoding: 'base32', token: code });
     if (!valid) throw new UnauthorizedException('Invalid TOTP code');
     await db.update({ where: { id: userId }, data: { mfaEnabled: false, mfaSecret: null } });
+    await this.logs.log('MFA_DISABLED', `Wyłączono weryfikację dwuetapową (MFA) dla: ${user.email}`, userId, userId, 'USER');
   }
 
   signPartialToken(userId: string): string {
@@ -206,6 +266,7 @@ export class AuthService {
   }
 
   async findOrCreateOAuthUser(profile: OAuthProfile): Promise<User> {
+    const userDb = this.prisma.user as any;
     const account = await this.prisma.account.findUnique({
       where: {
         provider_providerAccountId: {
@@ -215,14 +276,35 @@ export class AuthService {
       },
       include: { user: true },
     });
-    if (account) return account.user;
 
-    let user = await this.prisma.user.findUnique({ where: { email: profile.email } });
+    if (account) {
+      await this.logs.log(
+        'USER_LOGIN_OAUTH',
+        `Logowanie OAuth (${profile.provider}): ${account.user.email}`,
+        account.user.id,
+        account.user.id,
+        'USER',
+      );
+      return account.user;
+    }
+
+    let user: UserAccess | null = await userDb.findUnique({ where: { email: profile.email } });
+    const isNewUser = !user;
+
     if (!user) {
-      user = await this.prisma.user.create({
-        data: { email: profile.email, name: profile.name, avatarUrl: profile.avatarUrl },
+      user = await userDb.create({
+        data: {
+          email: profile.email,
+          name: profile.name,
+          avatarUrl: profile.avatarUrl,
+          role: 'USER',
+          approvalStatus: 'PENDING',
+          approvedAt: null,
+        },
       });
     }
+
+    if (!user) throw new UnauthorizedException('User provisioning failed');
 
     await this.prisma.account.create({
       data: {
@@ -234,6 +316,197 @@ export class AuthService {
       },
     });
 
+    if (isNewUser) {
+      await this.logs.log(
+        'USER_REGISTER_OAUTH',
+        `Rejestracja przez OAuth (${profile.provider}): ${user.email} — oczekuje na zatwierdzenie`,
+        user.id,
+        user.id,
+        'USER',
+      );
+    } else {
+      await this.logs.log(
+        'USER_LOGIN_OAUTH',
+        `Powiązano konto OAuth (${profile.provider}): ${user.email}`,
+        user.id,
+        user.id,
+        'USER',
+      );
+    }
+
     return user;
+  }
+
+  async listPendingUsers(adminUserId: string) {
+    await this.requireApprovedOperator(adminUserId);
+    const db = this.prisma.user as any;
+    return db.findMany({
+      where: { approvalStatus: 'PENDING' },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, email: true, name: true, role: true, createdAt: true },
+    });
+  }
+
+  async approveUser(adminUserId: string, userId: string) {
+    const admin = await this.requireApprovedOperator(adminUserId);
+    const db = this.prisma.user as any;
+    const user: UserAccess | null = await db.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    if (user.approvalStatus === 'APPROVED') return user;
+
+    const updated = await db.update({
+      where: { id: userId },
+      data: { role: 'USER', approvalStatus: 'APPROVED', approvedAt: new Date(), blockedAt: null },
+      select: { id: true, email: true, name: true, role: true, approvalStatus: true, approvedAt: true },
+    });
+
+    await this.logs.log(
+      'USER_APPROVED',
+      `Administrator ${admin.email} zatwierdził konto: ${user.email}`,
+      adminUserId,
+      userId,
+      'USER',
+    );
+    return updated;
+  }
+
+  async listApprovedUsers(requestUserId: string) {
+    const currentUser = await this.requireApprovedOperator(requestUserId);
+    const db = this.prisma.user as any;
+    const where =
+      String(currentUser.role) === 'SUPERADMIN'
+        ? { approvalStatus: 'APPROVED' }
+        : { approvalStatus: 'APPROVED', role: { not: 'SUPERADMIN' } };
+    return db.findMany({
+      where,
+      orderBy: [{ role: 'desc' }, { email: 'asc' }],
+      select: { id: true, email: true, name: true, role: true, approvedAt: true, blockedAt: true },
+    });
+  }
+
+  async grantAdminRole(requestUserId: string, userId: string) {
+    const admin = await this.requireSuperAdmin(requestUserId);
+    const db = this.prisma.user as any;
+    const user: UserAccess | null = await db.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    if (String(user.role) === 'SUPERADMIN') throw new ForbiddenException('Cannot change superadmin role');
+    if (user.approvalStatus !== 'APPROVED') throw new ForbiddenException('Approve the account before granting admin');
+    if (user.blockedAt) throw new ForbiddenException('Unblock the account before granting admin');
+
+    const updated = await db.update({
+      where: { id: userId },
+      data: { role: 'ADMIN' },
+      select: { id: true, email: true, name: true, role: true, approvalStatus: true, approvedAt: true },
+    });
+
+    await this.logs.log(
+      'USER_GRANTED_ADMIN',
+      `Superadmin ${admin.email} nadał rolę administratora: ${user.email}`,
+      requestUserId,
+      userId,
+      'USER',
+    );
+    return updated;
+  }
+
+  async blockUser(requestUserId: string, userId: string) {
+    const currentUser = await this.requireApprovedOperator(requestUserId);
+    const db = this.prisma.user as any;
+    const user: UserAccess | null = await db.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    this.assertCanManageTarget(currentUser, user);
+
+    const updated = await db.update({
+      where: { id: userId },
+      data: { blockedAt: new Date() },
+      select: { id: true, email: true, name: true, role: true, approvalStatus: true, approvedAt: true, blockedAt: true },
+    });
+
+    await this.logs.log(
+      'USER_BLOCKED',
+      `Administrator ${currentUser.email} zablokował konto: ${user.email}`,
+      requestUserId,
+      userId,
+      'USER',
+    );
+    return updated;
+  }
+
+  async unblockUser(requestUserId: string, userId: string) {
+    const currentUser = await this.requireApprovedOperator(requestUserId);
+    const db = this.prisma.user as any;
+    const user: UserAccess | null = await db.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    this.assertCanManageTarget(currentUser, user);
+
+    const updated = await db.update({
+      where: { id: userId },
+      data: { blockedAt: null },
+      select: { id: true, email: true, name: true, role: true, approvalStatus: true, approvedAt: true, blockedAt: true },
+    });
+
+    await this.logs.log(
+      'USER_UNBLOCKED',
+      `Administrator ${currentUser.email} odblokował konto: ${user.email}`,
+      requestUserId,
+      userId,
+      'USER',
+    );
+    return updated;
+  }
+
+  async ensureSuperAdmin(): Promise<void> {
+    const email = this.config.get<string>('SUPERADMIN_EMAIL');
+    const password = this.config.get<string>('SUPERADMIN_PASSWORD');
+    const name = this.config.get<string>('SUPERADMIN_NAME', 'Super Admin');
+    if (!email || !password) return;
+
+    const db = this.prisma.user as any;
+    const passwordHash = await bcrypt.hash(password, 12);
+    const existing: UserAccess | null = await db.findUnique({ where: { email } });
+
+    if (!existing) {
+      await db.create({
+        data: { email, name, passwordHash, role: 'SUPERADMIN', approvalStatus: 'APPROVED', approvedAt: new Date() },
+      });
+      return;
+    }
+
+    await db.update({
+      where: { id: existing.id },
+      data: { name, passwordHash, role: 'SUPERADMIN' as any, approvalStatus: 'APPROVED', approvedAt: existing.approvedAt ?? new Date() },
+    });
+  }
+
+  private assertApproved(user: UserAccess) {
+    if (user.approvalStatus !== 'APPROVED') throw new UnauthorizedException(PENDING_APPROVAL_MESSAGE);
+  }
+
+  private assertNotBlocked(user: UserAccess) {
+    if (user.blockedAt) throw new UnauthorizedException(BLOCKED_ACCOUNT_MESSAGE);
+  }
+
+  private async requireApprovedOperator(userId: string): Promise<UserAccess> {
+    const db = this.prisma.user as any;
+    const user: UserAccess | null = await db.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('User not found');
+    this.assertNotBlocked(user);
+    this.assertApproved(user);
+    if (user.role !== 'ADMIN' && user.role !== 'SUPERADMIN') throw new ForbiddenException('Admin access required');
+    return user;
+  }
+
+  private async requireSuperAdmin(userId: string): Promise<UserAccess> {
+    const user = await this.requireApprovedOperator(userId);
+    if (String(user.role) !== 'SUPERADMIN') throw new ForbiddenException('Superadmin access required');
+    return user;
+  }
+
+  private assertCanManageTarget(currentUser: UserAccess, targetUser: UserAccess) {
+    if (currentUser.id === targetUser.id) throw new ForbiddenException('Cannot manage your own account');
+    if (String(targetUser.role) === 'SUPERADMIN') throw new ForbiddenException('Cannot manage superadmin account');
+    if (String(currentUser.role) === 'ADMIN' && String(targetUser.role) !== 'USER') {
+      throw new ForbiddenException('Admin can manage only user accounts');
+    }
   }
 }

@@ -9,4 +9,8 @@ export class LoginDto {
   @ApiProperty({ example: 'strongpassword' })
   @IsString()
   password!: string;
+
+  @ApiProperty({ example: 'turnstile-token' })
+  @IsString()
+  captchaToken!: string;
 }
