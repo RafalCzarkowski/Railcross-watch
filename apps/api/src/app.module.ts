@@ -7,6 +7,7 @@ import { RedisModule } from './redis/redis.module';
 import { AuthModule } from './auth/auth.module';
 import { VideosModule } from './videos/videos.module';
 import { LogsModule } from './logs/logs.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { LogsModule } from './logs/logs.module';
     AuthModule,
     VideosModule,
     LogsModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

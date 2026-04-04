@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 
@@ -12,6 +12,55 @@ interface Me {
   role: 'SUPERADMIN' | 'ADMIN' | 'USER';
   approvalStatus: 'PENDING' | 'APPROVED';
   blockedAt?: string | null;
+  sessionExpiresAt?: number | null;
+}
+
+function formatCountdown(seconds: number): string {
+  if (seconds <= 0) return '0:00';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) return `${h}h ${m.toString().padStart(2, '0')}m`;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function SessionTimer({ expiresAt, onExpired }: { expiresAt: number; onExpired: () => void }) {
+  const [remaining, setRemaining] = useState(() => Math.max(0, expiresAt - Math.floor(Date.now() / 1000)));
+  const onExpiredRef = useRef(onExpired);
+  onExpiredRef.current = onExpired;
+
+  useEffect(() => {
+    const tick = () => {
+      const secs = Math.max(0, expiresAt - Math.floor(Date.now() / 1000));
+      setRemaining(secs);
+      if (secs === 0) onExpiredRef.current();
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [expiresAt]);
+
+  const warn = remaining <= 300;
+  const critical = remaining <= 60;
+
+  return (
+    <div
+      title={`Sesja wygasa: ${new Date(expiresAt * 1000).toLocaleTimeString('pl-PL')}`}
+      className={`hidden items-center gap-1.5 rounded-full border px-3 py-1 sm:flex ${
+        critical
+          ? 'border-red-500/30 bg-red-500/10 text-red-400'
+          : warn
+          ? 'border-amber-500/30 bg-amber-500/10 text-amber-400'
+          : 'border-gray-700 bg-gray-800/60 text-gray-500'
+      }`}
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-3.5 w-3.5 shrink-0">
+        <circle cx="12" cy="12" r="10" />
+        <polyline points="12 6 12 12 16 14" />
+      </svg>
+      <span className="text-xs">do końca sesji: <span className="font-mono font-semibold">{formatCountdown(remaining)}</span></span>
+    </div>
+  );
 }
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? '/api';
@@ -264,6 +313,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-400" />
             <span className="text-xs font-medium text-green-400">System aktywny</span>
           </div>
+
+          {user?.sessionExpiresAt && (
+            <SessionTimer
+              expiresAt={user.sessionExpiresAt}
+              onExpired={handleLogout}
+            />
+          )}
 
           <div className="flex items-center gap-3">
             <div className="hidden flex-col items-end sm:flex">

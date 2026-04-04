@@ -409,6 +409,36 @@ export class AuthService {
     return updated;
   }
 
+  async revokeAdminRole(requestUserId: string, userId: string) {
+    const admin = await this.requireSuperAdmin(requestUserId);
+    const db = this.prisma.user as any;
+    const user: UserAccess | null = await db.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    if (String(user.role) === 'SUPERADMIN') throw new ForbiddenException('Cannot demote superadmin');
+    if (String(user.role) === 'USER') return db.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, name: true, role: true, approvalStatus: true, approvedAt: true },
+    });
+
+    const updated = await db.update({
+      where: { id: userId },
+      data: { role: 'USER' },
+      select: { id: true, email: true, name: true, role: true, approvalStatus: true, approvedAt: true },
+    });
+
+    const isSelf = requestUserId === userId;
+    await this.logs.log(
+      'USER_REVOKED_ADMIN',
+      isSelf
+        ? `Superadmin ${admin.email} cofnął sobie rolę administratora`
+        : `Superadmin ${admin.email} cofnął rolę administratora: ${user.email}`,
+      requestUserId,
+      userId,
+      'USER',
+    );
+    return updated;
+  }
+
   async blockUser(requestUserId: string, userId: string) {
     const currentUser = await this.requireApprovedOperator(requestUserId);
     const db = this.prisma.user as any;

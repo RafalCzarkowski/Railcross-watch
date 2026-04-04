@@ -27,11 +27,45 @@ model User {
   role           UserRole       @default(USER)
   approvalStatus ApprovalStatus @default(PENDING)
   approvedAt     DateTime?
+  blockedAt      DateTime?
   mfaEnabled     Boolean        @default(false)
   mfaSecret      String?
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   accounts       Account[]
+  videos         CrossingVideo[]
+  logs           ActivityLog[]
+}
+
+model CrossingVideo {
+  id             String   @id @default(cuid())
+  sourceType     String   @default("FILE")
+  filename       String?
+  originalName   String?
+  mimetype       String?
+  size           Int?
+  path           String?
+  sourceUrl      String?
+  title          String?
+  description    String?
+  location       String?
+  analysisStatus String   @default("PENDING")
+  approvalStatus String   @default("PENDING")
+  uploadedById   String
+  uploadedBy     User     @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model ActivityLog {
+  id         String   @id @default(cuid())
+  action     String
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  targetId   String?
+  targetType String?
+  message    String
+  createdAt  DateTime @default(now())
 }
 
 model Account {
