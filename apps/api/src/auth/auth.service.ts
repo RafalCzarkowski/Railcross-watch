@@ -539,4 +539,15 @@ export class AuthService {
       throw new ForbiddenException('Admin can manage only user accounts');
     }
   }
+
+  async completeOnboarding(userId: string): Promise<void> {
+    await (this.prisma.user as any).update({ where: { id: userId }, data: { isFirstLogin: false } });
+  }
+
+  async updateProfile(userId: string, dto: { name?: string; avatarUrl?: string }): Promise<User> {
+    const data: Record<string, string> = {};
+    if (dto.name !== undefined) data.name = dto.name;
+    if (dto.avatarUrl !== undefined) data.avatarUrl = dto.avatarUrl;
+    return (this.prisma.user as any).update({ where: { id: userId }, data });
+  }
 }

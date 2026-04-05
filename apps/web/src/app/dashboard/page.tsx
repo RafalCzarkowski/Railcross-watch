@@ -1,108 +1,162 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 
-interface StatCard {
-  label: string;
-  value: string;
-  sub: string;
-  trend: 'up' | 'down' | 'neutral';
-  color: string;
-  icon: React.ReactNode;
+const API = process.env.NEXT_PUBLIC_API_URL ?? '/api';
+
+interface DailyStat { date: string; count: number; }
+interface Summary {
+  users: { total: number; pendingApproval: number; withMfa: number; byRole: Record<string, number> };
+  videos: {
+    total: number;
+    byApprovalStatus: Record<string, number>;
+    byAnalysisStatus: Record<string, number>;
+    bySourceType: Record<string, number>;
+    totalSizeBytes: number;
+    uploadsLast30Days: DailyStat[];
+  };
+  activity: { totalLogs: number; last30Days: DailyStat[]; byAction: { action: string; count: number }[]; failedLogins7Days: number };
 }
 
-const alertsData = [
-  { id: 1, location: 'Przejazd A-14 · Warszawa Zachodnia', type: 'Awaria sygnalizacji', time: '2 min temu', severity: 'high' },
-  { id: 2, location: 'Przejazd B-07 · Kraków Główny', type: 'Brak obrazu z kamery', time: '18 min temu', severity: 'medium' },
-  { id: 3, location: 'Przejazd C-22 · Gdańsk Wrzeszcz', type: 'Opóźnienie rogatki', time: '41 min temu', severity: 'low' },
-];
+interface LogEntry {
+  id: string;
+  action: string;
+  message: string;
+  actor: { name: string | null; email: string } | null;
+  createdAt: string;
+}
 
-const crossingsData = [
-  { id: 'A-14', name: 'Warszawa Zachodnia', status: 'alert', lastCheck: '1 min temu', trains: 142 },
-  { id: 'B-07', name: 'Kraków Główny', status: 'warning', lastCheck: '3 min temu', trains: 98 },
-  { id: 'C-22', name: 'Gdańsk Wrzeszcz', status: 'ok', lastCheck: '2 min temu', trains: 67 },
-  { id: 'D-03', name: 'Wrocław Główny', status: 'ok', lastCheck: '1 min temu', trains: 211 },
-  { id: 'E-11', name: 'Poznań Główny', status: 'ok', lastCheck: '4 min temu', trains: 88 },
-];
-
-const statusConfig = {
-  ok:      { label: 'Aktywny',    dot: 'bg-green-400',  badge: 'bg-green-500/10 text-green-400 border-green-500/20' },
-  warning: { label: 'Ostrzeżenie', dot: 'bg-amber-400',  badge: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
-  alert:   { label: 'Awaria',     dot: 'bg-red-400',    badge: 'bg-red-500/10 text-red-400 border-red-500/20' },
+const ACTION_COLOR: Record<string, string> = {
+  USER_LOGIN:         'bg-green-500',
+  USER_LOGIN_OAUTH:   'bg-green-500',
+  USER_LOGOUT:        'bg-gray-500',
+  LOGIN_FAILED:       'bg-red-500',
+  MFA_CODE_FAILED:    'bg-red-500',
+  MFA_LOGIN_SUCCESS:  'bg-green-500',
+  USER_REGISTER:      'bg-blue-500',
+  USER_REGISTER_OAUTH:'bg-blue-500',
+  USER_APPROVED:      'bg-green-500',
+  USER_BLOCKED:       'bg-red-500',
+  VIDEO_UPLOAD:       'bg-sky-500',
+  VIDEO_LINK_ADD:     'bg-sky-500',
+  VIDEO_APPROVE:      'bg-green-500',
+  VIDEO_REJECT:       'bg-red-500',
+  VIDEO_DELETE:       'bg-red-500',
+  VIDEO_ANALYSIS_QUEUED: 'bg-amber-500',
 };
 
-const severityConfig = {
-  high:   { bar: 'bg-red-500',   label: 'Krytyczny', text: 'text-red-400' },
-  medium: { bar: 'bg-amber-500', label: 'Ważny',     text: 'text-amber-400' },
-  low:    { bar: 'bg-blue-500',  label: 'Niski',     text: 'text-blue-400' },
+const ACTION_LABEL: Record<string, string> = {
+  USER_LOGIN:            'Logowanie',
+  USER_LOGIN_OAUTH:      'Logowanie OAuth',
+  USER_LOGOUT:           'Wylogowanie',
+  LOGIN_FAILED:          'Błąd logowania',
+  MFA_CODE_FAILED:       'Błędny kod OTP',
+  MFA_LOGIN_SUCCESS:     'Weryfikacja OTP',
+  MFA_ENABLED:           'MFA włączone',
+  MFA_DISABLED:          'MFA wyłączone',
+  USER_REGISTER:         'Rejestracja',
+  USER_REGISTER_OAUTH:   'Rejestracja OAuth',
+  USER_APPROVED:         'Konto zatwierdzone',
+  USER_BLOCKED:          'Konto zablokowane',
+  USER_UNBLOCKED:        'Konto odblokowane',
+  USER_GRANTED_ADMIN:    'Nadano admina',
+  USER_REVOKED_ADMIN:    'Cofnięto admina',
+  VIDEO_UPLOAD:          'Wgrano nagranie',
+  VIDEO_LINK_ADD:        'Dodano link',
+  VIDEO_APPROVE:         'Zatwierdzono nagranie',
+  VIDEO_REJECT:          'Odrzucono nagranie',
+  VIDEO_DELETE:          'Usunięto nagranie',
+  VIDEO_UPDATE:          'Edytowano nagranie',
+  VIDEO_ANALYSIS_QUEUED: 'Zlecono analizę AI',
 };
+
+function formatBytes(b: number) {
+  if (!b) return '0 B';
+  if (b < 1024 ** 2) return `${(b / 1024).toFixed(0)} KB`;
+  if (b < 1024 ** 3) return `${(b / 1024 ** 2).toFixed(1)} MB`;
+  return `${(b / 1024 ** 3).toFixed(2)} GB`;
+}
+
+function timeAgo(iso: string) {
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (diff < 60) return `${diff}s temu`;
+  if (diff < 3600) return `${Math.floor(diff / 60)} min temu`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h temu`;
+  return new Date(iso).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' });
+}
 
 export default function DashboardPage() {
   const [time, setTime] = useState(new Date());
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const id = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
 
-  const stats: StatCard[] = [
-    {
-      label: 'Aktywne przejazdy',
-      value: '247',
-      sub: '+3 od ostatniej godz.',
-      trend: 'up',
-      color: 'from-amber-500/20 to-transparent border-amber-500/20',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-6 w-6 text-amber-400">
-          <path d="M4 12h16M4 12l3-3m-3 3 3 3" />
-          <circle cx="19" cy="12" r="2" />
-          <path d="M12 5v14" strokeDasharray="2 2" />
-        </svg>
-      ),
-    },
-    {
-      label: 'Aktywne alerty',
-      value: '3',
-      sub: '↓ 2 mniej niż wczoraj',
-      trend: 'down',
-      color: 'from-red-500/20 to-transparent border-red-500/20',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-6 w-6 text-red-400">
-          <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-          <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
-        </svg>
-      ),
-    },
-    {
-      label: 'Dostępność systemu',
-      value: '99.8%',
-      sub: 'Ostatnie 30 dni',
-      trend: 'neutral',
-      color: 'from-green-500/20 to-transparent border-green-500/20',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-6 w-6 text-green-400">
-          <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-        </svg>
-      ),
-    },
-    {
-      label: 'Pociągi dziś',
-      value: '1 847',
-      sub: '+12% vs. poprzedni tydzień',
-      trend: 'up',
-      color: 'from-blue-500/20 to-transparent border-blue-500/20',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-6 w-6 text-blue-400">
-          <rect x="4" y="3" width="16" height="12" rx="2" />
-          <path d="M4 11h16M8 3v8M16 3v8" />
-          <path d="M8 19l-2 2M16 19l2 2M8 19h8" />
-        </svg>
-      ),
-    },
-  ];
+  useEffect(() => {
+    async function load() {
+      const meRes = await fetch(`${API}/auth/me`, { credentials: 'include' });
+      if (!meRes.ok) { setLoading(false); return; }
+      const me = await meRes.json();
+      const admin = me.role === 'ADMIN' || me.role === 'SUPERADMIN';
+      setIsAdmin(admin);
+
+      const promises: Promise<void>[] = [];
+
+      if (admin) {
+        promises.push(
+          fetch(`${API}/reports/summary`, { credentials: 'include' })
+            .then(r => r.ok ? r.json() : null)
+            .then(d => { if (d) setSummary(d); }),
+          fetch(`${API}/logs?limit=8`, { credentials: 'include' })
+            .then(r => r.ok ? r.json() : [])
+            .then(d => setLogs(Array.isArray(d) ? d : [])),
+        );
+      } else {
+        promises.push(
+          fetch(`${API}/videos`, { credentials: 'include' })
+            .then(r => r.ok ? r.json() : [])
+            .then((vids: any[]) => {
+              const approved = vids.filter(v => v.approvalStatus === 'APPROVED').length;
+              const pending  = vids.filter(v => v.approvalStatus === 'PENDING').length;
+              setSummary({
+                users: { total: 0, pendingApproval: 0, withMfa: 0, byRole: {} },
+                videos: {
+                  total: vids.length,
+                  byApprovalStatus: { APPROVED: approved, PENDING: pending },
+                  byAnalysisStatus: {},
+                  bySourceType: {},
+                  totalSizeBytes: vids.reduce((s: number, v: any) => s + (v.size ?? 0), 0),
+                  uploadsLast30Days: [],
+                },
+                activity: { totalLogs: 0, last30Days: [], byAction: [], failedLogins7Days: 0 },
+              });
+            }),
+        );
+      }
+
+      await Promise.all(promises);
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  const maxActivity = summary ? Math.max(...summary.activity.last30Days.map(d => d.count), 1) : 1;
+  const maxUploads  = summary ? Math.max(...summary.videos.uploadsLast30Days.map(d => d.count), 1) : 1;
+
+  const analysisDone       = summary?.videos.byAnalysisStatus['DONE'] ?? 0;
+  const analysisProcessing = summary?.videos.byAnalysisStatus['PROCESSING'] ?? 0;
+  const analysisPending    = summary?.videos.byAnalysisStatus['PENDING'] ?? 0;
+  const analysisError      = summary?.videos.byAnalysisStatus['ERROR'] ?? 0;
 
   return (
     <div className="space-y-6">
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-white">Przegląd systemu</h1>
@@ -112,7 +166,10 @@ export default function DashboardPage() {
             <span className="font-mono text-amber-400">{time.toLocaleTimeString('pl-PL')}</span>
           </p>
         </div>
-        <button className="flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-300 transition hover:border-gray-600 hover:text-white">
+        <button
+          onClick={() => { setLoading(true); setSummary(null); setLogs([]); }}
+          className="flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-300 transition hover:border-gray-600 hover:text-white"
+        >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-4 w-4">
             <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
             <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
@@ -121,108 +178,237 @@ export default function DashboardPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {stats.map((stat) => (
-          <div
-            key={stat.label}
-            className={`relative overflow-hidden rounded-xl border bg-gradient-to-br ${stat.color} bg-gray-900 p-5`}
-          >
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{stat.label}</p>
-                <p className="mt-2 text-3xl font-bold text-white">{stat.value}</p>
-                <p className="mt-1 text-xs text-gray-500">{stat.sub}</p>
+      {loading ? (
+        <div className="flex items-center justify-center py-24 text-gray-500">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="mr-3 h-5 w-5 animate-spin">
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+          </svg>
+          Ładowanie danych…
+        </div>
+      ) : (
+        <>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+
+            <div className="relative overflow-hidden rounded-xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 to-transparent bg-gray-900 p-5">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Nagrania</p>
+                  <p className="mt-2 text-3xl font-bold text-white">{summary?.videos.total ?? 0}</p>
+                  <p className="mt-1 text-xs text-gray-500">{formatBytes(summary?.videos.totalSizeBytes ?? 0)}</p>
+                </div>
+                <div className="rounded-lg bg-gray-800/80 p-2">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-6 w-6 text-amber-400">
+                    <path d="M15 10l4.553-2.069A1 1 0 0 1 21 8.82v6.36a1 1 0 0 1-1.447.89L15 14" />
+                    <rect x="1" y="6" width="15" height="12" rx="2" />
+                  </svg>
+                </div>
               </div>
-              <div className="rounded-lg bg-gray-800/80 p-2">{stat.icon}</div>
+            </div>
+
+
+            <div className="relative overflow-hidden rounded-xl border border-sky-500/20 bg-gradient-to-br from-sky-500/10 to-transparent bg-gray-900 p-5">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Oczekuje na zatwierdzenie</p>
+                  <p className="mt-2 text-3xl font-bold text-white">{summary?.videos.byApprovalStatus['PENDING'] ?? 0}</p>
+                  <p className="mt-1 text-xs text-gray-500">{summary?.videos.byApprovalStatus['APPROVED'] ?? 0} zatwierdzonych</p>
+                </div>
+                <div className="rounded-lg bg-gray-800/80 p-2">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-6 w-6 text-sky-400">
+                    <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+
+            <div className="relative overflow-hidden rounded-xl border border-green-500/20 bg-gradient-to-br from-green-500/10 to-transparent bg-gray-900 p-5">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Analiz ukończonych</p>
+                  <p className="mt-2 text-3xl font-bold text-white">{analysisDone}</p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {analysisProcessing > 0 && <span className="text-amber-400">{analysisProcessing} w trakcie · </span>}
+                    {analysisPending} oczekuje
+                  </p>
+                </div>
+                <div className="rounded-lg bg-gray-800/80 p-2">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-6 w-6 text-green-400">
+                    <path d="M12 2a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4z" />
+                    <path d="M12 14c-5 0-8 2-8 4v1h16v-1c0-2-3-4-8-4z" />
+                    <polyline points="17 11 19 13 23 9" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+
+            {isAdmin ? (
+              <div className="relative overflow-hidden rounded-xl border border-red-500/20 bg-gradient-to-br from-red-500/10 to-transparent bg-gray-900 p-5">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Błędy logowania (7 dni)</p>
+                    <p className="mt-2 text-3xl font-bold text-white">{summary?.activity.failedLogins7Days ?? 0}</p>
+                    <p className="mt-1 text-xs text-gray-500">{summary?.users.pendingApproval ?? 0} kont oczekuje na akceptację</p>
+                  </div>
+                  <div className="rounded-lg bg-gray-800/80 p-2">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-6 w-6 text-red-400">
+                      <rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                      <line x1="12" y1="15" x2="12" y2="17" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="relative overflow-hidden rounded-xl border border-purple-500/20 bg-gradient-to-br from-purple-500/10 to-transparent bg-gray-900 p-5">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Błędy analizy</p>
+                    <p className="mt-2 text-3xl font-bold text-white">{analysisError}</p>
+                    <p className="mt-1 text-xs text-gray-500">nagrań wymaga ponownej analizy</p>
+                  </div>
+                  <div className="rounded-lg bg-gray-800/80 p-2">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-6 w-6 text-purple-400">
+                      <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                      <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+
+
+            <div className="rounded-xl border border-gray-800 bg-gray-900">
+              <div className="flex items-center justify-between border-b border-gray-800 px-5 py-4">
+                <h2 className="text-sm font-semibold text-white">Ostatnia aktywność</h2>
+                {isAdmin && (
+                  <Link href="/dashboard/logs" className="text-xs font-medium text-amber-400 hover:text-amber-300">
+                    Wszystkie logi →
+                  </Link>
+                )}
+              </div>
+              {logs.length === 0 ? (
+                <div className="px-5 py-10 text-center text-sm text-gray-600">Brak zdarzeń do wyświetlenia.</div>
+              ) : (
+                <ul className="divide-y divide-gray-800">
+                  {logs.map((log) => (
+                    <li key={log.id} className="flex items-start gap-3 px-5 py-3">
+                      <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${ACTION_COLOR[log.action] ?? 'bg-gray-600'}`} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm text-white">{log.message}</p>
+                        <p className="mt-0.5 text-xs text-gray-600">
+                          {log.actor?.name ?? log.actor?.email ?? 'System'}
+                          {' · '}{ACTION_LABEL[log.action] ?? log.action}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-xs text-gray-600">{timeAgo(log.createdAt)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+
+            <div className="rounded-xl border border-gray-800 bg-gray-900">
+              <div className="flex items-center justify-between border-b border-gray-800 px-5 py-4">
+                <h2 className="text-sm font-semibold text-white">Status analizy AI</h2>
+                <Link href="/dashboard/analysis" className="text-xs font-medium text-amber-400 hover:text-amber-300">
+                  Otwórz analizę →
+                </Link>
+              </div>
+              <div className="p-5 space-y-4">
+                {[
+                  { label: 'Oczekuje na analizę', value: analysisPending,    total: summary?.videos.total ?? 1, color: 'bg-gray-600',   text: 'text-gray-400' },
+                  { label: 'W trakcie przetwarzania', value: analysisProcessing, total: summary?.videos.total ?? 1, color: 'bg-amber-500 animate-pulse', text: 'text-amber-400' },
+                  { label: 'Analiza ukończona',   value: analysisDone,       total: summary?.videos.total ?? 1, color: 'bg-green-500',  text: 'text-green-400' },
+                  { label: 'Błąd analizy',        value: analysisError,      total: summary?.videos.total ?? 1, color: 'bg-red-500',    text: 'text-red-400' },
+                ].map(({ label, value, total, color, text }) => (
+                  <div key={label}>
+                    <div className="mb-1.5 flex items-center justify-between text-xs">
+                      <span className="text-gray-400">{label}</span>
+                      <span className={`font-semibold ${text}`}>{value}</span>
+                    </div>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-gray-800">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${color}`}
+                        style={{ width: total > 0 ? `${(value / total) * 100}%` : '0%' }}
+                      />
+                    </div>
+                  </div>
+                ))}
+
+
+                {summary && Object.keys(summary.videos.bySourceType).length > 0 && (
+                  <div className="mt-4 border-t border-gray-800 pt-4">
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-600">Źródła nagrań</p>
+                    <div className="flex gap-4">
+                      {Object.entries(summary.videos.bySourceType).map(([type, count]) => (
+                        <div key={type} className="text-center">
+                          <p className="text-lg font-black text-white">{count}</p>
+                          <p className="text-[10px] text-gray-500">{{ FILE: 'Plik', YOUTUBE: 'YouTube', STREAM: 'Stream' }[type] ?? type}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        ))}
-      </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="rounded-xl border border-gray-800 bg-gray-900">
-          <div className="flex items-center justify-between border-b border-gray-800 px-5 py-4">
-            <h2 className="text-sm font-semibold text-white">Aktywne alerty</h2>
-            <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-xs font-bold text-red-400">3</span>
-          </div>
-          <ul className="divide-y divide-gray-800">
-            {alertsData.map((alert) => {
-              const s = severityConfig[alert.severity as keyof typeof severityConfig];
-              return (
-                <li key={alert.id} className="flex items-start gap-4 px-5 py-4">
-                  <div className={`mt-1 h-2 w-1 flex-none rounded-full ${s.bar}`} />
-                  <div className="flex-1 min-w-0">
-                    <p className="truncate text-sm font-medium text-white">{alert.location}</p>
-                    <p className="mt-0.5 text-xs text-gray-500">{alert.type}</p>
-                  </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <span className={`text-[10px] font-semibold uppercase ${s.text}`}>{s.label}</span>
-                    <span className="text-xs text-gray-600">{alert.time}</span>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-          <div className="border-t border-gray-800 px-5 py-3">
-            <button className="text-xs font-medium text-amber-400 hover:text-amber-300">
-              Zobacz wszystkie alerty →
-            </button>
-          </div>
-        </div>
 
-        <div className="rounded-xl border border-gray-800 bg-gray-900">
-          <div className="flex items-center justify-between border-b border-gray-800 px-5 py-4">
-            <h2 className="text-sm font-semibold text-white">Status przejazdów</h2>
-            <span className="text-xs text-gray-500">247 aktywnych</span>
-          </div>
-          <ul className="divide-y divide-gray-800">
-            {crossingsData.map((c) => {
-              const s = statusConfig[c.status as keyof typeof statusConfig];
-              return (
-                <li key={c.id} className="flex items-center gap-4 px-5 py-3.5">
-                  <span className="w-10 text-xs font-mono font-semibold text-gray-400">{c.id}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="truncate text-sm font-medium text-white">{c.name}</p>
-                    <p className="text-xs text-gray-500">{c.trains} pociągów · {c.lastCheck}</p>
-                  </div>
-                  <span className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold ${s.badge}`}>
-                    <span className={`h-1.5 w-1.5 rounded-full ${s.dot} ${c.status === 'ok' ? 'animate-pulse' : ''}`} />
-                    {s.label}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-          <div className="border-t border-gray-800 px-5 py-3">
-            <button className="text-xs font-medium text-amber-400 hover:text-amber-300">
-              Wszystkie przejazdy →
-            </button>
-          </div>
-        </div>
-      </div>
+          {isAdmin && summary && (
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
 
-      <div className="rounded-xl border border-gray-800 bg-gray-900 p-5">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-white">Aktywność przejazdów — ostatnie 24h</h2>
-          <div className="flex items-center gap-4 text-xs text-gray-500">
-            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-400" />Przejazdy</span>
-            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-red-400" />Alerty</span>
-          </div>
-        </div>
-        <div className="flex h-28 items-end gap-1.5">
-          {[42,58,35,71,63,48,55,80,92,76,68,84,95,88,74,91,87,79,65,72,58,69,77,83].map((val, i) => (
-            <div key={i} className="flex flex-1 flex-col items-center gap-1">
-              <div
-                className="w-full rounded-t bg-amber-500/30 transition-all hover:bg-amber-500/50"
-                style={{ height: `${val}%` }}
-              />
+
+              <div className="rounded-xl border border-gray-800 bg-gray-900 p-5">
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="text-sm font-semibold text-white">Zdarzenia systemowe — ostatnie 30 dni</h2>
+                  <span className="text-xs text-gray-500">{summary.activity.totalLogs} łącznie</span>
+                </div>
+                <div className="flex h-24 items-end gap-0.5">
+                  {summary.activity.last30Days.map((d) => (
+                    <div
+                      key={d.date}
+                      title={`${d.date}: ${d.count}`}
+                      className="flex-1 rounded-t bg-purple-500/40 transition-all hover:bg-purple-500/70 min-w-0"
+                      style={{ height: `${Math.max(4, (d.count / maxActivity) * 100)}%` }}
+                    />
+                  ))}
+                </div>
+                <div className="mt-2 flex justify-between text-[10px] text-gray-600">
+                  <span>30 dni temu</span><span>dziś</span>
+                </div>
+              </div>
+
+
+              <div className="rounded-xl border border-gray-800 bg-gray-900 p-5">
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="text-sm font-semibold text-white">Nowe nagrania — ostatnie 30 dni</h2>
+                  <span className="text-xs text-gray-500">{summary.videos.total} łącznie</span>
+                </div>
+                <div className="flex h-24 items-end gap-0.5">
+                  {summary.videos.uploadsLast30Days.map((d) => (
+                    <div
+                      key={d.date}
+                      title={`${d.date}: ${d.count}`}
+                      className="flex-1 rounded-t bg-amber-500/40 transition-all hover:bg-amber-500/70 min-w-0"
+                      style={{ height: `${Math.max(4, (d.count / maxUploads) * 100)}%` }}
+                    />
+                  ))}
+                </div>
+                <div className="mt-2 flex justify-between text-[10px] text-gray-600">
+                  <span>30 dni temu</span><span>dziś</span>
+                </div>
+              </div>
             </div>
-          ))}
-        </div>
-        <div className="mt-2 flex justify-between text-[10px] text-gray-600">
-          <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span>
-        </div>
-      </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

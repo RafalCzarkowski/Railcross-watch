@@ -9,7 +9,9 @@ import { createWriteStream, existsSync, mkdirSync } from 'fs';
 import { unlink } from 'fs/promises';
 import { join, extname } from 'path';
 import { pipeline } from 'stream/promises';
+import * as ffmpeg from 'fluent-ffmpeg';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { UpdateVideoDto } from './dto/update-video.dto';
 import { CreateLinkDto } from './dto/create-link.dto';
 
@@ -39,25 +41,50 @@ const VIDEO_INCLUDE = { uploadedBy: { select: { id: true, name: true, email: tru
 @Injectable()
 export class VideosService {
   private readonly uploadsDir: string;
+  private readonly thumbnailsDir: string;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly notifications: NotificationsService,
   ) {
     this.uploadsDir = this.config.get('UPLOADS_DIR', join(process.cwd(), 'uploads', 'videos'));
+    this.thumbnailsDir = join(this.uploadsDir, '..', 'thumbnails');
     if (!existsSync(this.uploadsDir)) mkdirSync(this.uploadsDir, { recursive: true });
+    if (!existsSync(this.thumbnailsDir)) mkdirSync(this.thumbnailsDir, { recursive: true });
   }
 
   private get db() { return this.prisma as any; }
+
+  private generateThumbnail(videoPath: string, videoId: string): void {
+    const outPath = join(this.thumbnailsDir, `${videoId}.jpg`);
+    ffmpeg(videoPath)
+      .screenshots({ timestamps: ['00:00:01'], filename: `${videoId}.jpg`, folder: this.thumbnailsDir, size: '320x?' })
+      .on('end', () => {
+        this.db.crossingVideo.update({ where: { id: videoId }, data: { thumbnailPath: outPath } }).catch(() => {});
+      })
+      .on('error', () => { /* ffmpeg not available or video too short — skip silently */ });
+  }
+
+  private async notifyAdmins(message: string, videoId: string): Promise<void> {
+    try {
+      const admins = await this.db.user.findMany({
+        where: { role: { in: ['ADMIN', 'SUPERADMIN'] } },
+        select: { id: true },
+      });
+      const adminIds = admins.map((a: { id: string }) => a.id);
+      if (adminIds.length > 0) {
+        this.notifications.notifyMany(adminIds, 'VIDEO_PENDING_ADMIN', message, videoId);
+      }
+    } catch { /* non-critical */ }
+  }
 
   private async log(action: string, message: string, actorId: string | null, targetId?: string) {
     try {
       await this.db.activityLog.create({
         data: { action, message, actorId, targetId, targetType: targetId ? 'VIDEO' : null },
       });
-    } catch {
-      // log errors must not break the main flow
-    }
+    } catch { /* */ }
   }
 
   private async assertAccess(videoId: string, callerId: string, callerRole: CallerRole) {
@@ -70,7 +97,7 @@ export class VideosService {
   }
 
   async upload(
-    file: { filename: string; mimetype: string; file: NodeJS.ReadableStream },
+    file: { filename: string; mimetype: string; file: NodeJS.ReadableStream; tags?: string[]; location?: string },
     uploadedById: string,
     callerRole: CallerRole,
   ) {
@@ -103,9 +130,13 @@ export class VideosService {
         path: filePath,
         uploadedById,
         approvalStatus,
+        tags: file.tags ?? [],
+        location: file.location ?? null,
       },
       include: VIDEO_INCLUDE,
     });
+
+    this.generateThumbnail(filePath, video.id);
 
     await this.log(
       'VIDEO_UPLOAD',
@@ -113,6 +144,10 @@ export class VideosService {
       uploadedById,
       video.id,
     );
+
+    if (approvalStatus === 'PENDING') {
+      this.notifyAdmins(`Nowe nagranie "${file.filename}" oczekuje na zatwierdzenie`, video.id);
+    }
 
     return video;
   }
@@ -132,6 +167,7 @@ export class VideosService {
         title: dto.title,
         description: dto.description,
         location: dto.location,
+        tags: dto.tags ?? [],
         uploadedById,
         approvalStatus,
       },
@@ -146,23 +182,70 @@ export class VideosService {
       video.id,
     );
 
+    if (approvalStatus === 'PENDING') {
+      this.notifyAdmins(`Nowy link ${typeLabel} "${dto.title ?? dto.url}" oczekuje na zatwierdzenie`, video.id);
+    }
+
     return video;
   }
 
-  async findAll(callerId: string, callerRole: CallerRole) {
+  async findAll(
+    callerId: string,
+    callerRole: CallerRole,
+    filters?: {
+      search?: string;
+      dateFrom?: string;
+      dateTo?: string;
+      analysisStatus?: string;
+      approvalStatus?: string;
+      sourceType?: string;
+    },
+  ) {
+    const textFilter = filters?.search
+      ? {
+          OR: [
+            { title: { contains: filters.search, mode: 'insensitive' } },
+            { originalName: { contains: filters.search, mode: 'insensitive' } },
+            { location: { contains: filters.search, mode: 'insensitive' } },
+          ],
+        }
+      : undefined;
+
+    const dateFilter: Record<string, Date> = {};
+    if (filters?.dateFrom) dateFilter.gte = new Date(filters.dateFrom);
+    if (filters?.dateTo) {
+      const d = new Date(filters.dateTo);
+      d.setHours(23, 59, 59, 999);
+      dateFilter.lte = d;
+    }
+
+    const extraFilters = {
+      ...(textFilter ?? {}),
+      ...(Object.keys(dateFilter).length > 0 ? { createdAt: dateFilter } : {}),
+      ...(filters?.analysisStatus ? { analysisStatus: filters.analysisStatus } : {}),
+      ...(filters?.approvalStatus ? { approvalStatus: filters.approvalStatus } : {}),
+      ...(filters?.sourceType ? { sourceType: filters.sourceType } : {}),
+    };
+
     if (isOperator(callerRole)) {
       return this.db.crossingVideo.findMany({
+        where: Object.keys(extraFilters).length > 0 ? extraFilters : undefined,
         orderBy: { createdAt: 'desc' },
         include: VIDEO_INCLUDE,
       });
     }
+
+    const roleWhere = {
+      OR: [
+        { approvalStatus: 'APPROVED' },
+        { uploadedById: callerId },
+      ],
+    };
+
     return this.db.crossingVideo.findMany({
-      where: {
-        OR: [
-          { approvalStatus: 'APPROVED' },
-          { uploadedById: callerId },
-        ],
-      },
+      where: Object.keys(extraFilters).length > 0
+        ? { AND: [roleWhere, extraFilters] }
+        : roleWhere,
       orderBy: { createdAt: 'desc' },
       include: VIDEO_INCLUDE,
     });
@@ -170,6 +253,49 @@ export class VideosService {
 
   async findOne(id: string, callerId: string, callerRole: CallerRole) {
     return this.assertAccess(id, callerId, callerRole);
+  }
+
+  async enqueueAnalysis(id: string, callerId: string, callerRole: CallerRole) {
+    const video = await this.assertAccess(id, callerId, callerRole);
+    if (video.approvalStatus !== 'APPROVED') {
+      throw new ForbiddenException('Nagranie musi być zatwierdzone przed analizą');
+    }
+    if (video.analysisStatus === 'PROCESSING') {
+      throw new ForbiddenException('Analiza już trwa');
+    }
+
+    const updated = await this.db.crossingVideo.update({
+      where: { id },
+      data: { analysisStatus: 'PROCESSING' },
+      include: VIDEO_INCLUDE,
+    });
+
+    const label = video.title ?? video.originalName ?? id;
+    await this.log('VIDEO_ANALYSIS_QUEUED', `Zlecono analizę AI dla nagrania "${label}"`, callerId, id);
+
+    return updated;
+  }
+
+  async saveAnalysisResult(
+    id: string,
+    result: { status: 'DONE' | 'ERROR'; detectionsJson?: string; annotatedPath?: string; errorMessage?: string },
+  ) {
+    const video = await this.db.crossingVideo.findUnique({ where: { id }, select: { uploadedById: true, title: true, originalName: true } });
+    const updated = await this.db.crossingVideo.update({
+      where: { id },
+      data: {
+        analysisStatus: result.status,
+        detectionsJson: result.detectionsJson ?? null,
+        annotatedPath: result.annotatedPath ?? null,
+        analysisError: result.errorMessage ?? null,
+      },
+      include: VIDEO_INCLUDE,
+    });
+    if (video && result.status === 'DONE') {
+      const label = video.title ?? video.originalName ?? id;
+      this.notifications.notify(video.uploadedById, 'ANALYSIS_DONE', `Analiza AI zakończona dla nagrania "${label}"`, id);
+    }
+    return updated;
   }
 
   async approve(id: string, callerId: string) {
@@ -184,6 +310,7 @@ export class VideosService {
 
     const label = video.title ?? video.originalName ?? id;
     await this.log('VIDEO_APPROVE', `Zatwierdzono nagranie "${label}"`, callerId, id);
+    this.notifications.notify(video.uploadedById, 'VIDEO_APPROVED', `Twoje nagranie "${label}" zostało zatwierdzone`, id);
 
     return updated;
   }
@@ -200,6 +327,7 @@ export class VideosService {
 
     const label = video.title ?? video.originalName ?? id;
     await this.log('VIDEO_REJECT', `Odrzucono nagranie "${label}"`, callerId, id);
+    this.notifications.notify(video.uploadedById, 'VIDEO_REJECTED', `Twoje nagranie "${label}" zostało odrzucone`, id);
 
     return updated;
   }
@@ -236,5 +364,66 @@ export class VideosService {
       throw new ForbiddenException('Not a file-based video');
     }
     return video.path;
+  }
+
+  async getThumbnailPath(id: string, callerId: string, callerRole: CallerRole): Promise<string | null> {
+    const video = await this.assertAccess(id, callerId, callerRole);
+    return video.thumbnailPath ?? null;
+  }
+
+  async getQueue() {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const [processing, pendingCount, recentlyDone] = await Promise.all([
+      this.db.crossingVideo.findMany({
+        where: { analysisStatus: 'PROCESSING' },
+        include: VIDEO_INCLUDE,
+        orderBy: { updatedAt: 'asc' },
+      }),
+      this.db.crossingVideo.count({
+        where: { analysisStatus: 'PENDING', approvalStatus: 'APPROVED' },
+      }),
+      this.db.crossingVideo.findMany({
+        where: {
+          analysisStatus: { in: ['DONE', 'ERROR'] },
+          updatedAt: { gte: oneHourAgo },
+        },
+        include: VIDEO_INCLUDE,
+        orderBy: { updatedAt: 'desc' },
+        take: 5,
+      }),
+    ]);
+    return { processing, pendingCount, recentlyDone };
+  }
+
+  async bulkOperation(action: 'approve' | 'reject' | 'delete', ids: string[], callerId: string) {
+    const safeIds = ids.slice(0, 50);
+    const succeeded: string[] = [];
+    const failed: string[] = [];
+
+    for (const id of safeIds) {
+      try {
+        if (action === 'approve') await this.approve(id, callerId);
+        else if (action === 'reject') await this.reject(id, callerId);
+        else await this.db.crossingVideo.delete({ where: { id } });
+        succeeded.push(id);
+      } catch {
+        failed.push(id);
+      }
+    }
+
+    if (action === 'delete' && succeeded.length > 0) {
+      await this.log('VIDEO_DELETE', `Usunięto masowo ${succeeded.length} nagrań`, callerId);
+    }
+
+    return { succeeded, failed };
+  }
+
+  async getUniqueTags(callerId: string, callerRole: CallerRole): Promise<string[]> {
+    const where = isOperator(callerRole)
+      ? {}
+      : { OR: [{ approvalStatus: 'APPROVED' }, { uploadedById: callerId }] };
+    const videos = await this.db.crossingVideo.findMany({ where, select: { tags: true } });
+    const allTags = (videos as { tags: string[] }[]).flatMap(v => v.tags);
+    return [...new Set(allTags)].sort();
   }
 }

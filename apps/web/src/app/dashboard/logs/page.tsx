@@ -12,6 +12,8 @@ interface LogEntry {
   actor: Actor | null;
   targetId: string | null;
   targetType: string | null;
+  ipAddress: string | null;
+  userAgent: string | null;
   createdAt: string;
 }
 
@@ -194,7 +196,7 @@ export default function LogsPage() {
         </button>
       </div>
 
-      {/* Search + limit */}
+
       <div className="flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-52">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500">
@@ -224,7 +226,7 @@ export default function LogsPage() {
         </div>
       </div>
 
-      {/* Group filter tabs */}
+
       <div className="flex flex-wrap gap-2">
         {GROUP_FILTERS.map(({ value, label }) => {
           const count = value === 'all' ? logs.length : (groupCounts[value] ?? 0);
@@ -287,6 +289,9 @@ export default function LogsPage() {
                       <span className="italic text-gray-600">System / nieznany</span>
                     )}
                     <span>{formatDate(log.createdAt)}</span>
+                    {log.ipAddress && (
+                      <span className="font-mono text-gray-600" title={log.userAgent ?? undefined}>{log.ipAddress}</span>
+                    )}
                     {log.targetId && log.targetType !== 'USER' && (
                       <span className="font-mono text-gray-700">#{log.targetId.slice(-8)}</span>
                     )}

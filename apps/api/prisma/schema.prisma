@@ -30,16 +30,19 @@ model User {
   blockedAt      DateTime?
   mfaEnabled     Boolean        @default(false)
   mfaSecret      String?
+  isFirstLogin   Boolean        @default(true)
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   accounts       Account[]
   videos         CrossingVideo[]
   logs           ActivityLog[]
+  comments       VideoComment[]
+  notifications  Notification[]
 }
 
 model CrossingVideo {
-  id             String   @id @default(cuid())
-  sourceType     String   @default("FILE")
+  id             String         @id @default(cuid())
+  sourceType     String         @default("FILE")
   filename       String?
   originalName   String?
   mimetype       String?
@@ -49,12 +52,28 @@ model CrossingVideo {
   title          String?
   description    String?
   location       String?
-  analysisStatus String   @default("PENDING")
-  approvalStatus String   @default("PENDING")
-  uploadedById   String
-  uploadedBy     User     @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  tags           String[]
+  thumbnailPath  String?
+  analysisStatus  String        @default("PENDING")
+  approvalStatus  String        @default("PENDING")
+  detectionsJson  String?
+  annotatedPath   String?
+  analysisError   String?
+  uploadedById    String
+  uploadedBy     User           @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  comments       VideoComment[]
+}
+
+model VideoComment {
+  id        String        @id @default(cuid())
+  body      String
+  videoId   String
+  video     CrossingVideo @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  authorId  String?
+  author    User?         @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  createdAt DateTime      @default(now())
 }
 
 model ActivityLog {
@@ -65,7 +84,20 @@ model ActivityLog {
   targetId   String?
   targetType String?
   message    String
+  ipAddress  String?
+  userAgent  String?
   createdAt  DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  message   String
+  videoId   String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
 }
 
 model Account {

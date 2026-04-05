@@ -7,13 +7,27 @@ export class LogsService {
 
   private get db() { return this.prisma as any; }
 
-  async log(action: string, message: string, actorId: string | null, targetId?: string, targetType?: string) {
+  async log(
+    action: string,
+    message: string,
+    actorId: string | null,
+    targetId?: string,
+    targetType?: string,
+    meta?: { ipAddress?: string; userAgent?: string },
+  ) {
     try {
       await this.db.activityLog.create({
-        data: { action, message, actorId: actorId ?? null, targetId: targetId ?? null, targetType: targetType ?? null },
+        data: {
+          action,
+          message,
+          actorId: actorId ?? null,
+          targetId: targetId ?? null,
+          targetType: targetType ?? null,
+          ipAddress: meta?.ipAddress ?? null,
+          userAgent: meta?.userAgent ?? null,
+        },
       });
     } catch {
-      // log errors must never break the main flow
     }
   }
 
@@ -33,7 +47,16 @@ export class LogsService {
       where,
       orderBy: { createdAt: 'desc' },
       take: safeLimit,
-      include: {
+      select: {
+        id: true,
+        action: true,
+        message: true,
+        actorId: true,
+        targetId: true,
+        targetType: true,
+        ipAddress: true,
+        userAgent: true,
+        createdAt: true,
         actor: { select: { id: true, name: true, email: true } },
       },
     });

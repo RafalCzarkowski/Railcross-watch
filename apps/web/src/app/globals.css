@@ -1,1 +1,61 @@
 @import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ── Theme CSS Variables ── */
+:root {
+  --bg-base:     #030712;  /* gray-950 */
+  --bg-surface:  #111827;  /* gray-900 */
+  --bg-elevated: #1f2937;  /* gray-800 */
+  --border:      #374151;  /* gray-700 */
+  --text-primary:   #f9fafb; /* gray-50 */
+  --text-secondary: #9ca3af; /* gray-400 */
+  --text-muted:     #6b7280; /* gray-500 */
+}
+
+html.light {
+  --bg-base:     #f3f4f6;  /* gray-100 */
+  --bg-surface:  #ffffff;
+  --bg-elevated: #f9fafb;
+  --border:      #e5e7eb;  /* gray-200 */
+  --text-primary:   #111827; /* gray-900 */
+  --text-secondary: #4b5563; /* gray-600 */
+  --text-muted:     #9ca3af; /* gray-400 */
+}
+
+/* Apply theme vars to Tailwind custom theme tokens */
+@theme inline {
+  --color-theme-base:     var(--bg-base);
+  --color-theme-surface:  var(--bg-surface);
+  --color-theme-elevated: var(--bg-elevated);
+  --color-theme-border:   var(--border);
+  --color-theme-text:     var(--text-primary);
+  --color-theme-muted:    var(--text-muted);
+}
+
+/* Structural overrides for light mode */
+html.light body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+}
+
+/* Override main dashboard shell in light mode */
+html.light .dashboard-shell {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+}
+
+html.light .dashboard-sidebar {
+  background-color: var(--bg-surface);
+  border-color: var(--border);
+}
+
+html.light .dashboard-header {
+  background-color: var(--bg-surface);
+  border-color: var(--border);
+}
+
+html.light .card {
+  background-color: var(--bg-surface);
+  border-color: var(--border);
+}

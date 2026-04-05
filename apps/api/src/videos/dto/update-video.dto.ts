@@ -1,4 +1,4 @@
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsArray, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class UpdateVideoDto {
   @IsOptional()
@@ -15,4 +15,9 @@ export class UpdateVideoDto {
   @IsString()
   @MaxLength(200)
   location?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[];
 }

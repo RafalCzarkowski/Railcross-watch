@@ -10,11 +10,14 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@railcross/shared-types": "*",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.7",
     "next": "^15.0.0",
+    "next-auth": "beta",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "next-auth": "beta",
-    "@railcross/shared-types": "*"
+    "recharts": "^3.8.1"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

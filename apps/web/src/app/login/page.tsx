@@ -30,13 +30,13 @@ function useCctvTime() {
 }
 
 function useStats() {
-  const [stats, setStats] = useState({ crossings: 0, alerts: 0, uptime: '0' })
+  const [stats, setStats] = useState({ totalVideos: 0, approvedVideos: 0, totalUsers: 0, analysisDone: 0 })
   useEffect(() => {
-    setStats({
-      crossings: Math.floor(Math.random() * 300) + 80,
-      alerts: Math.floor(Math.random() * 8),
-      uptime: (99 + Math.random() * 0.9).toFixed(1),
-    })
+    const api = process.env.NEXT_PUBLIC_API_URL ?? '/api'
+    fetch(`${api}/reports/public`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setStats(d) })
+      .catch(() => {})
   }, [])
   return stats
 }
@@ -376,24 +376,24 @@ export default function LoginPage() {
 
         <div className="float-a pointer-events-none absolute left-6 top-16 select-none opacity-60">
           <div className="relative overflow-hidden rounded-xl border border-amber-200 bg-white/90 px-4 py-3 shadow-md">
-            <p className="text-xs font-medium text-gray-400">Przejazdy dziś</p>
-            <p className="text-xl font-bold text-gray-700">{stats.crossings}</p>
+            <p className="text-xs font-medium text-gray-400">Nagrania w systemie</p>
+            <p className="text-xl font-bold text-gray-700">{stats.totalVideos}</p>
             <div className="noise-overlay absolute inset-0 rounded-xl" style={{ background: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.08) 0px, rgba(180,180,180,0.15) 1px, rgba(255,255,255,0.1) 2px, rgba(100,100,100,0.1) 3px)', backgroundSize: '100% 3px' }} />
           </div>
         </div>
 
         <div className="float-b pointer-events-none absolute bottom-28 left-8 select-none opacity-60">
-          <div className="relative overflow-hidden rounded-xl border border-red-200 bg-white/90 px-4 py-3 shadow-md">
-            <p className="text-xs font-medium text-gray-400">Aktywne alerty</p>
-            <p className="text-xl font-bold text-red-500">{stats.alerts}</p>
+          <div className="relative overflow-hidden rounded-xl border border-green-200 bg-white/90 px-4 py-3 shadow-md">
+            <p className="text-xs font-medium text-gray-400">Analiz ukończonych</p>
+            <p className="text-xl font-bold text-green-600">{stats.analysisDone}</p>
             <div className="noise-overlay-b absolute inset-0 rounded-xl" style={{ background: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.08) 0px, rgba(180,180,180,0.15) 1px, rgba(255,255,255,0.1) 2px, rgba(100,100,100,0.1) 3px)', backgroundSize: '100% 3px' }} />
           </div>
         </div>
 
         <div className="float-c pointer-events-none absolute right-6 top-1/3 select-none opacity-60">
-          <div className="relative overflow-hidden rounded-xl border border-green-200 bg-white/90 px-4 py-3 shadow-md">
-            <p className="text-xs font-medium text-gray-400">Dostępność</p>
-            <p className="text-xl font-bold text-green-600">{stats.uptime}%</p>
+          <div className="relative overflow-hidden rounded-xl border border-blue-200 bg-white/90 px-4 py-3 shadow-md">
+            <p className="text-xs font-medium text-gray-400">Użytkowników</p>
+            <p className="text-xl font-bold text-blue-600">{stats.totalUsers}</p>
             <div className="noise-overlay-c absolute inset-0 rounded-xl" style={{ background: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.08) 0px, rgba(180,180,180,0.15) 1px, rgba(255,255,255,0.1) 2px, rgba(100,100,100,0.1) 3px)', backgroundSize: '100% 3px' }} />
           </div>
         </div>

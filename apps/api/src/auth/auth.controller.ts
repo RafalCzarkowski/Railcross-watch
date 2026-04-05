@@ -5,12 +5,25 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
   Post,
   Query,
   Req,
   Res,
   UseGuards,
 } from '@nestjs/common';
+import { IsOptional, IsString, IsUrl, MaxLength } from 'class-validator';
+
+class UpdateProfileDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  avatarUrl?: string;
+}
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { FastifyReply } from 'fastify';
 import { JwtService } from '@nestjs/jwt';
@@ -66,24 +79,27 @@ export class AuthController {
   ) {
     await this.authService.verifyCaptcha(dto.captchaToken, req.ip);
 
+    const ip = req.ip as string | undefined;
+    const ua = req.headers?.['user-agent'] as string | undefined;
+
     let user: User;
     try {
       user = await this.authService.validateLocalUser(dto.email, dto.password);
     } catch (err) {
-      await this.logs.log('LOGIN_FAILED', `Nieudana próba logowania: ${dto.email}`, null);
+      await this.logs.log('LOGIN_FAILED', `Nieudana próba logowania: ${dto.email}`, null, undefined, undefined, { ipAddress: ip, userAgent: ua });
       throw err;
     }
 
     if ((user as any).mfaEnabled) {
       const partialToken = this.authService.signPartialToken(user.id);
       reply.setCookie('mfa_token', partialToken, { ...this.authService.getCookieOptions(), maxAge: 300 });
-      await this.logs.log('LOGIN_MFA_PENDING', `Logowanie (krok 1/2) — wymagany kod OTP: ${user.email}`, user.id, user.id, 'USER');
+      await this.logs.log('LOGIN_MFA_PENDING', `Logowanie (krok 1/2) — wymagany kod OTP: ${user.email}`, user.id, user.id, 'USER', { ipAddress: ip, userAgent: ua });
       return { mfaRequired: true };
     }
 
     const token = this.authService.signToken(user);
     reply.setCookie('access_token', token, this.authService.getCookieOptions());
-    await this.logs.log('USER_LOGIN', `Zalogowano: ${user.email}`, user.id, user.id, 'USER');
+    await this.logs.log('USER_LOGIN', `Zalogowano: ${user.email}`, user.id, user.id, 'USER', { ipAddress: ip, userAgent: ua });
     return { id: user.id, email: user.email, name: user.name };
   }
 
@@ -162,7 +178,9 @@ export class AuthController {
       const payload = this.jwtService.decode(token) as JwtPayload;
       await this.authService.logout(payload);
     }
-    await this.logs.log('USER_LOGOUT', `Wylogowano: ${user.email}`, user.id, user.id, 'USER');
+    const ip = req.ip as string | undefined;
+    const ua = req.headers?.['user-agent'] as string | undefined;
+    await this.logs.log('USER_LOGOUT', `Wylogowano: ${user.email}`, user.id, user.id, 'USER', { ipAddress: ip, userAgent: ua });
     reply.clearCookie('access_token', { path: '/' });
   }
 
@@ -190,6 +208,7 @@ export class AuthController {
       approvalStatus: (user as any).approvalStatus ?? 'PENDING',
       approvedAt: (user as any).approvedAt ?? null,
       mfaEnabled: (user as any).mfaEnabled ?? false,
+      isFirstLogin: (user as any).isFirstLogin ?? false,
       sessionExpiresAt,
     };
   }
@@ -260,6 +279,9 @@ export class AuthController {
     const mfaToken = req.cookies?.mfa_token;
     if (!mfaToken) throw new Error('MFA token missing');
 
+    const ip = req.ip as string | undefined;
+    const ua = req.headers?.['user-agent'] as string | undefined;
+
     let user: User;
     try {
       user = await this.authService.completeMfa(mfaToken, dto.code);
@@ -267,7 +289,7 @@ export class AuthController {
       try {
         const partial = this.jwtService.decode(mfaToken) as JwtPayload | null;
         if (partial?.sub) {
-          await this.logs.log('MFA_CODE_FAILED', `Nieprawidłowy kod OTP — nieudane logowanie dwuetapowe`, partial.sub, partial.sub, 'USER');
+          await this.logs.log('MFA_CODE_FAILED', `Nieprawidłowy kod OTP — nieudane logowanie dwuetapowe`, partial.sub, partial.sub, 'USER', { ipAddress: ip, userAgent: ua });
         }
       } catch { /* ignore decode errors */ }
       throw err;
@@ -275,7 +297,7 @@ export class AuthController {
 
     reply.clearCookie('mfa_token', { path: '/' });
     reply.setCookie('access_token', this.authService.signToken(user), this.authService.getCookieOptions());
-    await this.logs.log('MFA_LOGIN_SUCCESS', `Logowanie przez OTP zakończone sukcesem: ${user.email}`, user.id, user.id, 'USER');
+    await this.logs.log('MFA_LOGIN_SUCCESS', `Logowanie przez OTP zakończone sukcesem: ${user.email}`, user.id, user.id, 'USER', { ipAddress: ip, userAgent: ua });
     return { id: user.id, email: user.email, name: user.name };
   }
 
@@ -300,5 +322,27 @@ export class AuthController {
   @ApiOperation({ summary: 'Disable MFA' })
   async mfaDisable(@CurrentUser() user: User, @Body() dto: MfaVerifyDto) {
     await this.authService.disableMfa(user.id, dto.code);
+  }
+
+  @Post('onboarding/complete')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Mark onboarding as completed for current user' })
+  async completeOnboarding(@CurrentUser() user: User) {
+    await this.authService.completeOnboarding(user.id);
+  }
+
+  @Patch('profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Update own profile (name, avatarUrl)' })
+  async updateProfile(@CurrentUser() user: User, @Body() dto: UpdateProfileDto) {
+    const updated = await this.authService.updateProfile(user.id, dto);
+    return {
+      id: updated.id,
+      email: updated.email,
+      name: updated.name,
+      avatarUrl: updated.avatarUrl,
+      role: (updated as any).role,
+    };
   }
 }

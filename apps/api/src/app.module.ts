@@ -8,6 +8,9 @@ import { AuthModule } from './auth/auth.module';
 import { VideosModule } from './videos/videos.module';
 import { LogsModule } from './logs/logs.module';
 import { ReportsModule } from './reports/reports.module';
+import { CommentsModule } from './comments/comments.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { SearchModule } from './search/search.module';
 
 @Module({
   imports: [
@@ -18,6 +21,9 @@ import { ReportsModule } from './reports/reports.module';
     VideosModule,
     LogsModule,
     ReportsModule,
+    CommentsModule,
+    NotificationsModule,
+    SearchModule,
   ],
   controllers: [AppController],
   providers: [AppService],

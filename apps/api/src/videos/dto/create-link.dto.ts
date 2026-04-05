@@ -1,4 +1,4 @@
-import { IsIn, IsOptional, IsString, IsUrl, MaxLength } from 'class-validator';
+import { IsArray, IsIn, IsOptional, IsString, IsUrl, MaxLength } from 'class-validator';
 
 export class CreateLinkDto {
   @IsUrl({ require_protocol: true })
@@ -21,4 +21,9 @@ export class CreateLinkDto {
   @IsString()
   @MaxLength(200)
   location?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[];
 }

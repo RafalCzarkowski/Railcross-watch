@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import {
   BarChart, Bar, AreaChart, Area,
   PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? '/api';
@@ -102,6 +102,81 @@ const GRID = 'stroke-[#1f2937]';
 const AXIS_TICK = { fill: '#6b7280', fontSize: 11 };
 const TOOLTIP_STYLE = { backgroundColor: '#111827', border: '1px solid #374151', borderRadius: 8, color: '#f9fafb', fontSize: 12 };
 
+function exportCsv(data: Summary) {
+  const rows: string[][] = [
+    ['Sekcja', 'Metryka', 'Wartość'],
+    ['Użytkownicy', 'Łącznie', String(data.users.total)],
+    ['Użytkownicy', 'Oczekuje zatwierdzenia', String(data.users.pendingApproval)],
+    ['Użytkownicy', 'Z włączonym MFA', String(data.users.withMfa)],
+    ...Object.entries(data.users.byRole).map(([k, v]) => ['Użytkownicy', `Rola: ${k}`, String(v)]),
+    ['Nagrania', 'Łącznie', String(data.videos.total)],
+    ['Nagrania', 'Rozmiar łączny (bajty)', String(data.videos.totalSizeBytes)],
+    ...Object.entries(data.videos.bySourceType).map(([k, v]) => ['Nagrania', `Źródło: ${k}`, String(v)]),
+    ...Object.entries(data.videos.byApprovalStatus).map(([k, v]) => ['Nagrania', `Status: ${k}`, String(v)]),
+    ...Object.entries(data.videos.byAnalysisStatus).map(([k, v]) => ['Nagrania', `Analiza: ${k}`, String(v)]),
+    ['Aktywność', 'Zdarzenia łącznie', String(data.activity.totalLogs)],
+    ['Aktywność', 'Błędy logowania (7 dni)', String(data.activity.failedLogins7Days)],
+    ...data.activity.byAction.map((a) => ['Aktywność', `Akcja: ${a.action}`, String(a.count)]),
+  ];
+  const csv = rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(',')).join('\r\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `raport-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function exportPdf(data: Summary) {
+  const { default: jsPDF } = await import('jspdf');
+  const { default: autoTable } = await import('jspdf-autotable');
+  const doc = new jsPDF();
+
+  const headerStyle = { fillColor: [17, 24, 39] as [number, number, number], textColor: [245, 158, 11] as [number, number, number], fontStyle: 'bold' as const };
+  const bodyStyle = { fillColor: [31, 41, 55] as [number, number, number], textColor: [209, 213, 219] as [number, number, number] };
+
+  doc.setFontSize(14);
+  doc.setTextColor(245, 158, 11);
+  doc.text('RailCross Watch — Raport analityczny', 14, 16);
+  doc.setFontSize(9);
+  doc.setTextColor(107, 114, 128);
+  doc.text(`Wygenerowano: ${new Date().toLocaleString('pl-PL')}`, 14, 22);
+
+  autoTable(doc, {
+    startY: 28,
+    head: [['Metryka', 'Wartość']],
+    body: [
+      ['Użytkownicy łącznie', String(data.users.total)],
+      ['Oczekuje zatwierdzenia', String(data.users.pendingApproval)],
+      ['Z włączonym MFA', String(data.users.withMfa)],
+      ['Nagrania łącznie', String(data.videos.total)],
+      ['Rozmiar łączny', formatBytes(data.videos.totalSizeBytes)],
+      ['Zdarzenia w logach', String(data.activity.totalLogs)],
+      ['Błędy logowania (7 dni)', String(data.activity.failedLogins7Days)],
+    ],
+    headStyles: headerStyle,
+    bodyStyles: bodyStyle,
+    alternateRowStyles: { fillColor: [24, 33, 47] as [number, number, number] },
+  });
+
+  const y1 = (doc as any).lastAutoTable.finalY + 8;
+  doc.setFontSize(10);
+  doc.setTextColor(245, 158, 11);
+  doc.text('Top akcji systemowych', 14, y1);
+
+  autoTable(doc, {
+    startY: y1 + 4,
+    head: [['Akcja', 'Liczba']],
+    body: data.activity.byAction.map((a) => [ACTION_LABELS[a.action] ?? a.action, String(a.count)]),
+    headStyles: headerStyle,
+    bodyStyles: bodyStyle,
+    alternateRowStyles: { fillColor: [24, 33, 47] as [number, number, number] },
+  });
+
+  doc.save(`raport-${new Date().toISOString().slice(0, 10)}.pdf`);
+}
+
 function StatCard({ label, value, sub, color = 'amber' }: { label: string; value: string | number; sub?: string; color?: 'amber' | 'blue' | 'red' | 'green' | 'purple' }) {
   const cfg: Record<string, string> = {
     amber:  'text-amber-400 border-amber-500/20 bg-amber-500/5',
@@ -142,7 +217,7 @@ function SimplePie({ data }: { data: { name: string; value: number; color: strin
           <Pie data={data} dataKey="value" cx="50%" cy="50%" innerRadius={35} outerRadius={60} paddingAngle={2}>
             {data.map((d, i) => <Cell key={i} fill={d.color} />)}
           </Pie>
-          <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [`${v} (${((v / total) * 100).toFixed(0)}%)`, '']} />
+          <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => [`${v} (${((Number(v) / total) * 100).toFixed(0)}%)`, '']} />
         </PieChart>
       </ResponsiveContainer>
       <div className="flex flex-col gap-1.5">
@@ -220,24 +295,44 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-10">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-white">Raporty</h1>
           <p className="mt-0.5 text-sm text-gray-500">Analityka systemu — ostatnie 30 dni</p>
         </div>
-        <button
-          onClick={() => { setLoading(true); setData(null); fetch(`${API}/reports/summary`, { credentials: 'include' }).then(r => r.json()).then(setData).finally(() => setLoading(false)); }}
-          className="flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-400 transition hover:border-gray-600 hover:text-white"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-4 w-4">
-            <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
-            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-          </svg>
-          Odśwież
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => exportCsv(data)}
+            className="flex items-center gap-1.5 rounded-lg border border-green-700/40 bg-green-900/20 px-3 py-2 text-sm text-green-400 transition hover:border-green-600 hover:text-green-300"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-4 w-4">
+              <path d="M12 15V3m0 12-4-4m4 4 4-4M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17" />
+            </svg>
+            CSV
+          </button>
+          <button
+            onClick={() => exportPdf(data)}
+            className="flex items-center gap-1.5 rounded-lg border border-red-700/40 bg-red-900/20 px-3 py-2 text-sm text-red-400 transition hover:border-red-600 hover:text-red-300"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-4 w-4">
+              <path d="M12 15V3m0 12-4-4m4 4 4-4M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17" />
+            </svg>
+            PDF
+          </button>
+          <button
+            onClick={() => { setLoading(true); setData(null); fetch(`${API}/reports/summary`, { credentials: 'include' }).then(r => r.json()).then(setData).finally(() => setLoading(false)); }}
+            className="flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-400 transition hover:border-gray-600 hover:text-white"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-4 w-4">
+              <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+            </svg>
+            Odśwież
+          </button>
+        </div>
       </div>
 
-      {/* ── Stat cards ── */}
+
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatCard label="Użytkownicy" value={users.total} sub={`${users.pendingApproval} oczekuje`} color="blue" />
         <StatCard label="Nagrania" value={videos.total} sub={formatBytes(videos.totalSizeBytes)} color="amber" />
@@ -245,7 +340,7 @@ export default function ReportsPage() {
         <StatCard label="Błędy logowania" value={activity.failedLogins7Days} sub="ostatnie 7 dni" color="red" />
       </div>
 
-      {/* ── Users ── */}
+
       <div className="space-y-4">
         <SectionTitle>Użytkownicy</SectionTitle>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -256,7 +351,7 @@ export default function ReportsPage() {
                   <CartesianGrid strokeDasharray="3 3" className={GRID} vertical={false} />
                   <XAxis dataKey="date" tickFormatter={shortDate} tick={AXIS_TICK} tickLine={false} axisLine={false} interval={4} />
                   <YAxis tick={AXIS_TICK} tickLine={false} axisLine={false} allowDecimals={false} />
-                  <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={shortDate} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={(l) => shortDate(String(l))} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
                   <Bar dataKey="count" name="Rejestracje" fill={CHART_COLORS.blue} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -278,7 +373,7 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {/* ── Videos ── */}
+
       <div className="space-y-4">
         <SectionTitle>Nagrania</SectionTitle>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -289,7 +384,7 @@ export default function ReportsPage() {
                   <CartesianGrid strokeDasharray="3 3" className={GRID} vertical={false} />
                   <XAxis dataKey="date" tickFormatter={shortDate} tick={AXIS_TICK} tickLine={false} axisLine={false} interval={4} />
                   <YAxis tick={AXIS_TICK} tickLine={false} axisLine={false} allowDecimals={false} />
-                  <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={shortDate} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={(l) => shortDate(String(l))} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
                   <Bar dataKey="count" name="Nagrania" fill={CHART_COLORS.amber} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -306,7 +401,7 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {/* ── Activity ── */}
+
       <div className="space-y-4">
         <SectionTitle>Aktywność systemu</SectionTitle>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -322,7 +417,7 @@ export default function ReportsPage() {
                 <CartesianGrid strokeDasharray="3 3" className={GRID} vertical={false} />
                 <XAxis dataKey="date" tickFormatter={shortDate} tick={AXIS_TICK} tickLine={false} axisLine={false} interval={4} />
                 <YAxis tick={AXIS_TICK} tickLine={false} axisLine={false} allowDecimals={false} />
-                <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={shortDate} cursor={{ stroke: CHART_COLORS.purple, strokeWidth: 1 }} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={(l) => shortDate(String(l))} cursor={{ stroke: CHART_COLORS.purple, strokeWidth: 1 }} />
                 <Area type="monotone" dataKey="count" name="Zdarzenia" stroke={CHART_COLORS.purple} fill="url(#actGrad)" strokeWidth={2} dot={false} />
               </AreaChart>
             </ResponsiveContainer>

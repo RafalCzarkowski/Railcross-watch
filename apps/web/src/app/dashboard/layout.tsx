@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
+import OnboardingTour from '../../components/OnboardingTour';
+import { useTheme } from '../../components/ThemeProvider';
 
 interface Me {
   id: string;
@@ -13,6 +15,22 @@ interface Me {
   approvalStatus: 'PENDING' | 'APPROVED';
   blockedAt?: string | null;
   sessionExpiresAt?: number | null;
+  isFirstLogin?: boolean;
+}
+
+interface SearchResult {
+  videos: { id: string; title: string | null; originalName: string | null; analysisStatus: string; thumbnailPath: string | null }[];
+  users: { id: string; name: string | null; email: string; role: string }[];
+  logs: { id: string; action: string; message: string; createdAt: string }[];
+}
+
+interface Notification {
+  id: string;
+  type: string;
+  message: string;
+  videoId: string | null;
+  read: boolean;
+  createdAt: string;
 }
 
 function formatCountdown(seconds: number): string {
@@ -79,55 +97,25 @@ const navItems = [
     ),
   },
   {
-    href: '/dashboard/crossings',
-    label: 'Przejazdy',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-5 w-5">
-        <path d="M4 12h16M4 12l3-3m-3 3 3 3" />
-        <circle cx="19" cy="12" r="2" />
-        <path d="M12 5v14" strokeDasharray="2 2" />
-      </svg>
-    ),
-  },
-  {
-    href: '/dashboard/alerts',
-    label: 'Alerty',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-5 w-5">
-        <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-        <line x1="12" y1="9" x2="12" y2="13" />
-        <line x1="12" y1="17" x2="12.01" y2="17" />
-      </svg>
-    ),
-  },
-  {
-    href: '/dashboard/cameras',
-    label: 'Kamery',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-5 w-5">
-        <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z" />
-        <circle cx="12" cy="13" r="3" />
-      </svg>
-    ),
-  },
-  {
-    href: '/dashboard/map',
-    label: 'Mapa',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-5 w-5">
-        <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" />
-        <line x1="9" y1="3" x2="9" y2="18" />
-        <line x1="15" y1="6" x2="15" y2="21" />
-      </svg>
-    ),
-  },
-  {
     href: '/dashboard/videos',
     label: 'Nagrania',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-5 w-5">
         <path d="M15 10l4.553-2.069A1 1 0 0 1 21 8.82v6.36a1 1 0 0 1-1.447.89L15 14" />
         <rect x="1" y="6" width="15" height="12" rx="2" />
+      </svg>
+    ),
+  },
+  {
+    href: '/dashboard/analysis',
+    label: 'Analiza AI',
+    adminOnly: true,
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-5 w-5">
+        <path d="M12 2a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4z" />
+        <path d="M12 14c-5 0-8 2-8 4v1h16v-1c0-2-3-4-8-4z" />
+        <path d="M19 3l1.5 1.5L19 6" /><path d="M21 4.5H17" />
+        <path d="M19 18l1.5 1.5L19 21" /><path d="M21 19.5H17" />
       </svg>
     ),
   },
@@ -169,6 +157,16 @@ const navItems = [
     ),
   },
   {
+    href: '/dashboard/profile',
+    label: 'Profil',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-5 w-5">
+        <circle cx="12" cy="8" r="4" />
+        <path d="M6 20v-2a6 6 0 0 1 12 0v2" />
+      </svg>
+    ),
+  },
+  {
     href: '/dashboard/settings',
     label: 'Ustawienia',
     icon: (
@@ -185,8 +183,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const [user, setUser] = useState<Me | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const { theme, toggleTheme } = useTheme();
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchResult | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
 
   const visibleNavItems = navItems.filter((item) => !item.adminOnly || user?.role === 'ADMIN' || user?.role === 'SUPERADMIN');
+
+  const isOperatorUser = user?.role === 'ADMIN' || user?.role === 'SUPERADMIN';
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   useEffect(() => {
     fetch(`${API}/auth/me`, { credentials: 'include' })
@@ -194,9 +207,60 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         if (r.status === 401) { router.replace('/login'); return null; }
         return r.json() as Promise<Me>;
       })
-      .then((data) => { if (data) setUser(data); })
+      .then((data) => { if (data) { setUser(data); if (data.isFirstLogin) setShowOnboarding(true); } })
       .catch(() => router.replace('/login'));
   }, [router]);
+
+  useEffect(() => {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    if (searchQuery.trim().length < 2) { setSearchResults(null); return; }
+    searchTimerRef.current = setTimeout(async () => {
+      const res = await fetch(`${API}/search?q=${encodeURIComponent(searchQuery.trim())}`, { credentials: 'include' });
+      if (res.ok) { setSearchResults(await res.json()); setSearchOpen(true); }
+    }, 300);
+    return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
+  }, [searchQuery]);
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setSearchOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, []);
+
+  const loadNotifications = useCallback(async () => {
+    const res = await fetch(`${API}/notifications`, { credentials: 'include' });
+    if (res.ok) setNotifications(await res.json());
+  }, []);
+
+  useEffect(() => {
+    loadNotifications();
+    const id = setInterval(loadNotifications, 30_000);
+    return () => clearInterval(id);
+  }, [loadNotifications]);
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, []);
+
+  async function markAllRead() {
+    await fetch(`${API}/notifications/read-all`, { method: 'POST', credentials: 'include' });
+    setNotifications((ns) => ns.map((n) => ({ ...n, read: true })));
+  }
+
+  async function deleteNotif(id: string) {
+    await fetch(`${API}/notifications/${id}`, { method: 'DELETE', credentials: 'include' });
+    setNotifications((ns) => ns.filter((n) => n.id !== id));
+  }
 
   async function handleLogout() {
     await fetch(`${API}/auth/logout`, { method: 'POST', credentials: 'include' });
@@ -209,6 +273,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex h-screen bg-gray-950 text-white overflow-hidden">
+      {showOnboarding && <OnboardingTour onComplete={() => { setShowOnboarding(false); setUser((u) => u ? { ...u, isFirstLogin: false } : u); }} />}
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-20 bg-black/60 lg:hidden"
@@ -303,10 +368,91 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </svg>
           </button>
 
-          <div className="flex-1">
+          <div className="hidden items-center lg:flex">
             <span className="text-sm font-medium text-gray-400">
               {visibleNavItems.find((n) => n.href === pathname)?.label ?? 'Dashboard'}
             </span>
+          </div>
+
+          <div ref={searchRef} className="relative flex-1 max-w-sm lg:max-w-xs">
+            <div className="flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-4 w-4 shrink-0 text-gray-500">
+                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Szukaj…"
+                value={searchQuery}
+                onChange={(e) => { setSearchQuery(e.target.value); if (!e.target.value.trim()) setSearchOpen(false); }}
+                onFocus={() => { if (searchResults) setSearchOpen(true); }}
+                onKeyDown={(e) => { if (e.key === 'Escape') { setSearchOpen(false); setSearchQuery(''); } }}
+                className="w-full bg-transparent text-sm text-white outline-none placeholder:text-gray-500"
+              />
+              {searchQuery && (
+                <button onClick={() => { setSearchQuery(''); setSearchResults(null); setSearchOpen(false); }} className="text-gray-500 hover:text-white">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-3.5 w-3.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                </button>
+              )}
+            </div>
+            {searchOpen && searchResults && (
+              <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-72 rounded-xl border border-gray-800 bg-gray-900 shadow-2xl">
+                {searchResults.videos.length === 0 && searchResults.users.length === 0 && searchResults.logs.length === 0 ? (
+                  <p className="px-4 py-3 text-sm text-gray-500">Brak wyników</p>
+                ) : (
+                  <div className="max-h-80 overflow-y-auto py-1">
+                    {searchResults.videos.length > 0 && (
+                      <>
+                        <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500">Nagrania</p>
+                        {searchResults.videos.map((v) => (
+                          <Link
+                            key={v.id}
+                            href={`/dashboard/videos/${v.id}`}
+                            onClick={() => { setSearchOpen(false); setSearchQuery(''); }}
+                            className="flex items-center gap-3 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white"
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-4 w-4 shrink-0 text-gray-500"><path d="M15 10l4.553-2.069A1 1 0 0 1 21 8.82v6.36a1 1 0 0 1-1.447.89L15 14" /><rect x="1" y="6" width="15" height="12" rx="2" /></svg>
+                            <span className="truncate">{v.title ?? v.originalName ?? v.id}</span>
+                          </Link>
+                        ))}
+                      </>
+                    )}
+                    {isOperatorUser && searchResults.users.length > 0 && (
+                      <>
+                        <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500">Użytkownicy</p>
+                        {searchResults.users.map((u) => (
+                          <Link
+                            key={u.id}
+                            href="/dashboard/users"
+                            onClick={() => { setSearchOpen(false); setSearchQuery(''); }}
+                            className="flex items-center gap-3 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white"
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-4 w-4 shrink-0 text-gray-500"><circle cx="12" cy="8" r="4" /><path d="M6 20v-2a6 6 0 0 1 12 0v2" /></svg>
+                            <span className="truncate">{u.name ?? u.email}</span>
+                            <span className="ml-auto text-[10px] text-gray-600">{u.email}</span>
+                          </Link>
+                        ))}
+                      </>
+                    )}
+                    {isOperatorUser && searchResults.logs.length > 0 && (
+                      <>
+                        <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500">Logi</p>
+                        {searchResults.logs.map((l) => (
+                          <Link
+                            key={l.id}
+                            href="/dashboard/logs"
+                            onClick={() => { setSearchOpen(false); setSearchQuery(''); }}
+                            className="flex items-center gap-3 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white"
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-4 w-4 shrink-0 text-gray-500"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+                            <span className="truncate">{l.message}</span>
+                          </Link>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="hidden items-center gap-2 rounded-full border border-green-500/20 bg-green-500/10 px-3 py-1 sm:flex">
@@ -320,6 +466,92 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               onExpired={handleLogout}
             />
           )}
+
+          <div ref={notifRef} className="relative">
+            <button
+              onClick={() => { setNotifOpen((v) => !v); if (!notifOpen) loadNotifications(); }}
+              className="relative rounded-lg p-2 text-gray-400 transition hover:bg-gray-800 hover:text-white"
+              title="Powiadomienia"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-5 w-5">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+              {unreadCount > 0 && (
+                <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+            {notifOpen && (
+              <div className="absolute right-0 top-full z-50 mt-1 w-80 rounded-xl border border-gray-800 bg-gray-900 shadow-2xl">
+                <div className="flex items-center justify-between border-b border-gray-800 px-4 py-3">
+                  <span className="text-sm font-semibold text-white">Powiadomienia</span>
+                  {unreadCount > 0 && (
+                    <button onClick={markAllRead} className="text-xs text-gray-500 hover:text-amber-400 transition">
+                      Oznacz wszystkie
+                    </button>
+                  )}
+                </div>
+                {notifications.length === 0 ? (
+                  <p className="px-4 py-6 text-center text-sm text-gray-500">Brak powiadomień</p>
+                ) : (
+                  <ul className="max-h-96 divide-y divide-gray-800 overflow-y-auto">
+                    {notifications.map((n) => (
+                      <li
+                        key={n.id}
+                        className={`flex items-start gap-3 px-4 py-3 transition hover:bg-gray-800/60 ${n.read ? '' : 'bg-amber-500/5'}`}
+                      >
+                        <div className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${n.read ? 'bg-gray-700' : 'bg-amber-400'}`} />
+                        <div className="flex-1 min-w-0">
+                          {n.videoId ? (
+                            <Link
+                              href={`/dashboard/videos/${n.videoId}`}
+                              onClick={() => setNotifOpen(false)}
+                              className="block text-xs text-gray-300 hover:text-white"
+                            >
+                              {n.message}
+                            </Link>
+                          ) : (
+                            <p className="text-xs text-gray-300">{n.message}</p>
+                          )}
+                          <p className="mt-0.5 text-[10px] text-gray-600">
+                            {new Date(n.createdAt).toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' })}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => deleteNotif(n.id)}
+                          className="shrink-0 text-gray-700 hover:text-red-400 transition"
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-3.5 w-3.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={toggleTheme}
+            title={theme === 'dark' ? 'Przełącz na jasny motyw' : 'Przełącz na ciemny motyw'}
+            className="rounded-lg p-2 text-gray-400 transition hover:bg-gray-800 hover:text-amber-400"
+          >
+            {theme === 'dark' ? (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-5 w-5">
+                <circle cx="12" cy="12" r="5" />
+                <line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" />
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                <line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" />
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-5 w-5">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              </svg>
+            )}
+          </button>
 
           <div className="flex items-center gap-3">
             <div className="hidden flex-col items-end sm:flex">

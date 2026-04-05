@@ -30,6 +30,16 @@ export class ReportsService {
 
   private get db() { return this.prisma as any; }
 
+  async getPublicStats() {
+    const [totalVideos, approvedVideos, totalUsers, analysisDone] = await Promise.all([
+      this.db.crossingVideo.count(),
+      this.db.crossingVideo.count({ where: { approvalStatus: 'APPROVED' } }),
+      this.db.user.count({ where: { approvalStatus: 'APPROVED' } }),
+      this.db.crossingVideo.count({ where: { analysisStatus: 'DONE' } }),
+    ]);
+    return { totalVideos, approvedVideos, totalUsers, analysisDone };
+  }
+
   async getSummary() {
     const since30 = daysAgo(30);
     const since7  = daysAgo(7);
@@ -51,7 +61,6 @@ export class ReportsService {
       logsByAction,
       failedLogins7d,
     ] = await Promise.all([
-      // Users
       this.db.user.count(),
       this.db.user.groupBy({ by: ['role'], _count: { _all: true } }),
       this.db.user.count({ where: { approvalStatus: 'PENDING' } }),
@@ -61,7 +70,6 @@ export class ReportsService {
         select: { createdAt: true },
       }),
 
-      // Videos
       this.db.crossingVideo.count(),
       this.db.crossingVideo.groupBy({ by: ['sourceType'], _count: { _all: true } }),
       this.db.crossingVideo.groupBy({ by: ['approvalStatus'], _count: { _all: true } }),
@@ -72,7 +80,6 @@ export class ReportsService {
         select: { createdAt: true },
       }),
 
-      // Logs
       this.db.activityLog.count(),
       this.db.activityLog.findMany({
         where: { createdAt: { gte: since30 } },
@@ -89,7 +96,6 @@ export class ReportsService {
       }),
     ]);
 
-    // Build daily time-series
     const userDailyMap = buildDailyMap(since30);
     for (const u of usersLast30Raw) {
       const key = isoDate(new Date(u.createdAt));
