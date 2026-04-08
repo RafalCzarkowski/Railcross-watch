@@ -11,6 +11,7 @@ import { ReportsModule } from './reports/reports.module';
 import { CommentsModule } from './comments/comments.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { SearchModule } from './search/search.module';
+import { TrainingAssetsModule } from './training-assets/training-assets.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { SearchModule } from './search/search.module';
     CommentsModule,
     NotificationsModule,
     SearchModule,
+    TrainingAssetsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

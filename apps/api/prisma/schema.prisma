@@ -38,6 +38,8 @@ model User {
   logs           ActivityLog[]
   comments       VideoComment[]
   notifications  Notification[]
+  trainingAssets TrainingAsset[]
+  trainingRuns   TrainingRun[]
 }
 
 model CrossingVideo {
@@ -110,4 +112,39 @@ model Account {
   user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+}
+
+model TrainingAsset {
+  id               String   @id @default(cuid())
+  filename         String
+  originalName     String
+  mimetype         String
+  size             Int
+  path             String
+  title            String?
+  notes            String?
+  tags             String[]
+  uploadedById     String
+  uploadedBy       User     @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+  analysisStatus   String   @default("PENDING")
+  detectionsJson   String?
+  analysisError    String?
+  framesDir        String?
+  framesCount      Int?
+  trainedModelPath String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model TrainingRun {
+  id          String   @id @default(cuid())
+  status      String   @default("PENDING")
+  epochs      Int      @default(50)
+  modelPath   String?
+  metrics     String?
+  errorMsg    String?
+  startedById String
+  startedBy   User     @relation(fields: [startedById], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

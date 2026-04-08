@@ -85,24 +85,23 @@ const API = process.env.NEXT_PUBLIC_API_URL ?? '/api';
 
 const navItems = [
   {
-    href: '/dashboard',
-    label: 'Przegląd',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-5 w-5">
-        <rect x="3" y="3" width="7" height="7" rx="1" />
-        <rect x="14" y="3" width="7" height="7" rx="1" />
-        <rect x="3" y="14" width="7" height="7" rx="1" />
-        <rect x="14" y="14" width="7" height="7" rx="1" />
-      </svg>
-    ),
-  },
-  {
     href: '/dashboard/videos',
     label: 'Nagrania',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-5 w-5">
         <path d="M15 10l4.553-2.069A1 1 0 0 1 21 8.82v6.36a1 1 0 0 1-1.447.89L15 14" />
         <rect x="1" y="6" width="15" height="12" rx="2" />
+      </svg>
+    ),
+  },
+  {
+    href: '/dashboard/training',
+    label: 'Trening',
+    adminOnly: true,
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-5 w-5">
+        <path d="M4 6h16v12H4z" />
+        <path d="m10 9 5 3-5 3z" />
       </svg>
     ),
   },
@@ -200,6 +199,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const isOperatorUser = user?.role === 'ADMIN' || user?.role === 'SUPERADMIN';
   const unreadCount = notifications.filter((n) => !n.read).length;
+  const [apiOnline, setApiOnline] = useState<boolean | null>(null);
 
   useEffect(() => {
     fetch(`${API}/auth/me`, { credentials: 'include' })
@@ -252,6 +252,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => document.removeEventListener('mousedown', onClickOutside);
   }, []);
 
+  useEffect(() => {
+    async function checkHealth() {
+      try {
+        const res = await fetch(`${API}/health`, { credentials: 'include' });
+        setApiOnline(res.ok);
+      } catch {
+        setApiOnline(false);
+      }
+    }
+    checkHealth();
+    const id = setInterval(checkHealth, 30_000);
+    return () => clearInterval(id);
+  }, []);
+
   async function markAllRead() {
     await fetch(`${API}/notifications/read-all`, { method: 'POST', credentials: 'include' });
     setNotifications((ns) => ns.map((n) => ({ ...n, read: true })));
@@ -290,16 +304,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         `}
       >
         <div className="flex h-16 items-center gap-3 border-b border-gray-800 px-5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-5 w-5 text-black">
-              <path d="M4 12h16M4 12l3-3m-3 3 3 3" />
-              <circle cx="19" cy="12" r="2" />
-              <path d="M12 5v14" strokeDasharray="2 2" />
-            </svg>
-          </div>
-          <span className="text-sm font-semibold tracking-wide text-white">
-            railcross<span className="text-amber-400">-watch</span>
-          </span>
+          <Link href="/dashboard" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-5 w-5 text-black">
+                <path d="M4 12h16M4 12l3-3m-3 3 3 3" />
+                <circle cx="19" cy="12" r="2" />
+                <path d="M12 5v14" strokeDasharray="2 2" />
+              </svg>
+            </div>
+            <span className="text-sm font-semibold tracking-wide text-white">
+              railcross<span className="text-amber-400">-watch</span>
+            </span>
+          </Link>
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 py-4">
@@ -455,10 +471,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             )}
           </div>
 
-          <div className="hidden items-center gap-2 rounded-full border border-green-500/20 bg-green-500/10 px-3 py-1 sm:flex">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-400" />
-            <span className="text-xs font-medium text-green-400">System aktywny</span>
-          </div>
+          {apiOnline !== null && (
+            <div className={`hidden items-center gap-2 rounded-full border px-3 py-1 sm:flex ${apiOnline ? 'border-green-500/20 bg-green-500/10' : 'border-red-500/20 bg-red-500/10'}`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${apiOnline ? 'animate-pulse bg-green-400' : 'bg-red-400'}`} />
+              <span className={`text-xs font-medium ${apiOnline ? 'text-green-400' : 'text-red-400'}`}>
+                {apiOnline ? 'API online' : 'API offline'}
+              </span>
+            </div>
+          )}
 
           {user?.sessionExpiresAt && (
             <SessionTimer

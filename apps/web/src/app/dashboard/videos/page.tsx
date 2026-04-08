@@ -153,6 +153,7 @@ export default function VideosPage() {
   const [linkError, setLinkError] = useState('');
   const [dragging, setDragging] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [showFilters, setShowFilters] = useState(false);
@@ -217,6 +218,11 @@ export default function VideosPage() {
     setTimeout(() => setSuccessMsg(''), 4000);
   }
 
+  function showError(msg: string) {
+    setErrorMsg(msg);
+    setTimeout(() => setErrorMsg(''), 6000);
+  }
+
   async function handleUpload(file: File) {
     setUploading(true);
     setUploadProgress(0);
@@ -234,11 +240,16 @@ export default function VideosPage() {
         if (xhr.status < 300) {
           loadVideos(buildFilterParams());
           loadTags();
-          if (!isOperator(role)) showSuccess('Nagranie zostało przesłane i oczekuje na zatwierdzenie przez administratora.');
+          showSuccess(isOperator(role) ? 'Nagranie zostało wgrane.' : 'Nagranie zostało przesłane i oczekuje na zatwierdzenie przez administratora.');
+        } else {
+          try {
+            const d = JSON.parse(xhr.responseText);
+            showError(Array.isArray(d.message) ? d.message.join(', ') : (d.message ?? `Błąd wgrywania (${xhr.status})`));
+          } catch { showError(`Błąd wgrywania (${xhr.status})`); }
         }
         resolve();
       };
-      xhr.onerror = () => { setUploading(false); resolve(); };
+      xhr.onerror = () => { setUploading(false); showError('Błąd połączenia'); resolve(); };
       xhr.send(form);
     });
   }
@@ -460,6 +471,11 @@ export default function VideosPage() {
       {successMsg && (
         <div className="rounded-xl border border-green-500/20 bg-green-500/5 px-4 py-3 text-sm text-green-400">
           {successMsg}
+        </div>
+      )}
+      {errorMsg && (
+        <div className="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-400">
+          {errorMsg}
         </div>
       )}
 

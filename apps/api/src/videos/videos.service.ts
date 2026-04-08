@@ -12,6 +12,7 @@ import { pipeline } from 'stream/promises';
 import * as ffmpeg from 'fluent-ffmpeg';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { RedisService } from '../redis/redis.service';
 import { UpdateVideoDto } from './dto/update-video.dto';
 import { CreateLinkDto } from './dto/create-link.dto';
 
@@ -47,6 +48,7 @@ export class VideosService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly notifications: NotificationsService,
+    private readonly redis: RedisService,
   ) {
     this.uploadsDir = this.config.get('UPLOADS_DIR', join(process.cwd(), 'uploads', 'videos'));
     this.thumbnailsDir = join(this.uploadsDir, '..', 'thumbnails');
@@ -269,6 +271,14 @@ export class VideosService {
       data: { analysisStatus: 'PROCESSING' },
       include: VIDEO_INCLUDE,
     });
+
+    const job = JSON.stringify({
+      videoId: id,
+      filePath: (video as any).path ?? null,
+      sourceType: video.sourceType,
+      sourceUrl: (video as any).sourceUrl ?? null,
+    });
+    await this.redis.client.lpush('railcross:queue', job);
 
     const label = video.title ?? video.originalName ?? id;
     await this.log('VIDEO_ANALYSIS_QUEUED', `Zlecono analizę AI dla nagrania "${label}"`, callerId, id);

@@ -4,18 +4,19 @@ version = "0.1.0"
 description = "Silnik detekcji wykroczeń na przejazdach kolejowych (YOLOv8 + OpenCV)"
 requires-python = ">=3.11"
 dependencies = [
-    # Detekcja obiektów
     "ultralytics>=8.2",
-    # Przetwarzanie obrazu i wideo
     "opencv-python-headless>=4.9",
-    # Azure Storage SDK
     "azure-storage-blob>=12.19",
     "azure-storage-queue>=12.9",
-    # Walidacja konfiguracji i schematów
     "pydantic>=2.6",
     "pydantic-settings>=2.2",
-    # Logowanie
     "loguru>=0.7",
+    "yt-dlp>=2024.3",
+    "redis>=5.0",
+    "httpx>=0.27",
+    "supervision>=0.20",
+    "numpy>=1.26",
+    "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]
@@ -25,6 +26,9 @@ dev = [
     "ruff",
     "mypy",
 ]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
 
 [build-system]
 requires = ["hatchling"]

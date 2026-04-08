@@ -248,9 +248,9 @@ export default function DashboardPage() {
               <div className="relative overflow-hidden rounded-xl border border-red-500/20 bg-gradient-to-br from-red-500/10 to-transparent bg-gray-900 p-5">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Błędy logowania (7 dni)</p>
+                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Błędy użytkowników (7 dni)</p>
                     <p className="mt-2 text-3xl font-bold text-white">{summary?.activity.failedLogins7Days ?? 0}</p>
-                    <p className="mt-1 text-xs text-gray-500">{summary?.users.pendingApproval ?? 0} kont oczekuje na akceptację</p>
+                    <p className="mt-1 text-xs text-gray-500">nieudane próby działań w systemie</p>
                   </div>
                   <div className="rounded-lg bg-gray-800/80 p-2">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-6 w-6 text-red-400">

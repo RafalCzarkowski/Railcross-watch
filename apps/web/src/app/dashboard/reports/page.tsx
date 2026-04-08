@@ -115,7 +115,7 @@ function exportCsv(data: Summary) {
     ...Object.entries(data.videos.byApprovalStatus).map(([k, v]) => ['Nagrania', `Status: ${k}`, String(v)]),
     ...Object.entries(data.videos.byAnalysisStatus).map(([k, v]) => ['Nagrania', `Analiza: ${k}`, String(v)]),
     ['Aktywność', 'Zdarzenia łącznie', String(data.activity.totalLogs)],
-    ['Aktywność', 'Błędy logowania (7 dni)', String(data.activity.failedLogins7Days)],
+    ['Aktywność', 'Błędy użytkowników (7 dni)', String(data.activity.failedLogins7Days)],
     ...data.activity.byAction.map((a) => ['Aktywność', `Akcja: ${a.action}`, String(a.count)]),
   ];
   const csv = rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(',')).join('\r\n');
@@ -153,7 +153,7 @@ async function exportPdf(data: Summary) {
       ['Nagrania łącznie', String(data.videos.total)],
       ['Rozmiar łączny', formatBytes(data.videos.totalSizeBytes)],
       ['Zdarzenia w logach', String(data.activity.totalLogs)],
-      ['Błędy logowania (7 dni)', String(data.activity.failedLogins7Days)],
+      ['Błędy użytkowników (7 dni)', String(data.activity.failedLogins7Days)],
     ],
     headStyles: headerStyle,
     bodyStyles: bodyStyle,
@@ -337,7 +337,7 @@ export default function ReportsPage() {
         <StatCard label="Użytkownicy" value={users.total} sub={`${users.pendingApproval} oczekuje`} color="blue" />
         <StatCard label="Nagrania" value={videos.total} sub={formatBytes(videos.totalSizeBytes)} color="amber" />
         <StatCard label="Zdarzenia" value={activity.totalLogs} sub="łącznie w logach" color="purple" />
-        <StatCard label="Błędy logowania" value={activity.failedLogins7Days} sub="ostatnie 7 dni" color="red" />
+        <StatCard label="Błędy użytkowników" value={activity.failedLogins7Days} sub="ostatnie 7 dni" color="red" />
       </div>
 
 
