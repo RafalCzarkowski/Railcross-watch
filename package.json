@@ -3,8 +3,12 @@
   "private": true,
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
+    "dev:services": "docker compose -f infra/compose/docker-compose.dev.yml up -d",
+    "dev:services:down": "docker compose -f infra/compose/docker-compose.dev.yml down",
+    "db:migrate": "cd apps\\api && node_modules\\.bin\\prisma.exe migrate deploy --schema prisma\\schema.prisma",
     "dev": "turbo run dev",
     "dev:app": "turbo run dev --filter=@railcross/web --filter=@railcross/api",
+    "setup:app": "bun install && bun run dev:services && bun run db:migrate",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",
