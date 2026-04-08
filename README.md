@@ -54,7 +54,7 @@ Na Linuxie lub macOS zamiast `copy` użyj `cp`.
 
 ### API
 
-Przykładowa konfiguracja jest w [apps/api/.env.example](/c:/_git/railcross-watch/apps/api/.env.example).
+Przykładowa konfiguracja jest w `apps/api/.env.example`.
 
 Najważniejsze pola:
 
@@ -67,7 +67,7 @@ Najważniejsze pola:
 
 ### Web
 
-Przykładowa konfiguracja jest w [apps/web/.env.local.example](/c:/_git/railcross-watch/apps/web/.env.local.example).
+Przykładowa konfiguracja jest w `apps/web/.env.local.example`.
 
 Najważniejsze pola:
 
@@ -80,10 +80,25 @@ Najważniejsze pola:
 `bun run dev:app` uruchamia tylko `web` i `api`.
 Nie uruchamia Postgresa ani Redisa.
 
-Jeżeli korzystasz z Dockera:
+Jeżeli korzystasz z Dockera, w repo jest gotowy plik compose:
+
+- `infra/compose/docker-compose.dev.yml`
+
+Ten compose stawia lokalnie:
+
+- PostgreSQL
+- Redis
+
+Start:
 
 ```bash
 bun run dev:services
+```
+
+To polecenie wykonuje:
+
+```bash
+docker compose -f infra/compose/docker-compose.dev.yml up -d
 ```
 
 Zatrzymanie usług:
