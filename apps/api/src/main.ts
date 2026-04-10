@@ -10,17 +10,24 @@ import { AppModule } from './app.module';
 import { AuthService } from './auth/auth.service';
 
 async function bootstrap() {
+  if (!process.env.API_JWT_SECRET) {
+    throw new Error('API_JWT_SECRET env var is required');
+  }
+
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     new FastifyAdapter({ logger: true }),
   );
 
+  app.enableCors({
+    origin: process.env.FRONTEND_URL ?? 'http://localhost:3000',
+    credentials: true,
+  });
+
   await app.register(fastifyCookie as any);
   await app.register(fastifyMultipart as any, { limits: { fileSize: 2 * 1024 * 1024 * 1024 } });
   await app.register(fastifySecureSession as any, {
-    key: Buffer.from(
-      (process.env.API_JWT_SECRET ?? 'default-secret-32-chars-minimum!!').padEnd(32).slice(0, 32),
-    ),
+    key: Buffer.from(process.env.API_JWT_SECRET.padEnd(32).slice(0, 32)),
     salt: 'railcross-salt!!',
     cookie: { path: '/', httpOnly: true },
   });
@@ -44,14 +51,15 @@ async function bootstrap() {
     .build();
   const document = SwaggerModule.createDocument(app, config);
 
-  app.getHttpAdapter().get('/api/openapi.json', (_req, res) => {
-    res.header('Content-Type', 'application/json');
-    res.send(JSON.stringify(document));
-  });
+  if (process.env.NODE_ENV !== 'production') {
+    app.getHttpAdapter().get('/api/openapi.json', (_req, res) => {
+      res.header('Content-Type', 'application/json');
+      res.send(JSON.stringify(document));
+    });
 
-  app.getHttpAdapter().get('/api/docs', (_req, res) => {
-    res.header('Content-Type', 'text/html');
-    res.send(`<!doctype html>
+    app.getHttpAdapter().get('/api/docs', (_req, res) => {
+      res.header('Content-Type', 'text/html');
+      res.send(`<!doctype html>
 <html>
   <head>
     <title>railcross-watch API</title>
@@ -63,7 +71,8 @@ async function bootstrap() {
     <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
   </body>
 </html>`);
-  });
+    });
+  }
 
   await app.listen(3001, '::');
 }

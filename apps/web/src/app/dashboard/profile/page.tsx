@@ -57,12 +57,12 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const LOG_ACTION_LABELS: Record<string, { label: string; color: string }> = {
-  USER_LOGIN:       { label: 'Logowanie', color: 'text-green-400' },
-  USER_LOGIN_OAUTH: { label: 'Logowanie OAuth', color: 'text-green-400' },
-  USER_LOGOUT:      { label: 'Wylogowanie', color: 'text-gray-400' },
-  LOGIN_FAILED:     { label: 'Błędne logowanie', color: 'text-red-400' },
-  MFA_LOGIN_SUCCESS: { label: 'Logowanie OTP', color: 'text-green-400' },
-  MFA_CODE_FAILED:  { label: 'Błędny kod OTP', color: 'text-red-400' },
+  LOGOWANIE:       { label: 'Logowanie', color: 'text-green-400' },
+  LOGOWANIE_OAUTH: { label: 'Logowanie OAuth', color: 'text-green-400' },
+  WYLOGOWANIE:      { label: 'Wylogowanie', color: 'text-gray-400' },
+  LOGOWANIE_NIEUDANE:     { label: 'Błędne logowanie', color: 'text-red-400' },
+  OTP_WERYFIKACJA_OK: { label: 'Logowanie OTP', color: 'text-green-400' },
+  OTP_KOD_BLEDNY:  { label: 'Błędny kod OTP', color: 'text-red-400' },
 };
 
 export default function ProfilePage() {
@@ -87,7 +87,7 @@ export default function ProfilePage() {
       .then((r) => r.ok ? r.json() : [])
       .then((logs: RecentLog[]) => {
         setRecentLogs(logs.filter((l) =>
-          ['USER_LOGIN', 'USER_LOGIN_OAUTH', 'USER_LOGOUT', 'LOGIN_FAILED', 'MFA_LOGIN_SUCCESS', 'MFA_CODE_FAILED'].includes(l.action)
+          ['LOGOWANIE', 'LOGOWANIE_OAUTH', 'WYLOGOWANIE', 'LOGOWANIE_NIEUDANE', 'OTP_WERYFIKACJA_OK', 'OTP_KOD_BLEDNY'].includes(l.action)
         ).slice(0, 5));
       });
   }, []);

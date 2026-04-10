@@ -14,5 +14,9 @@ class Settings(BaseSettings):
 
     uploads_dir: str = "../../storage/uploads/videos"
 
+    track_zone_x_min: float = 0.25
+    track_zone_x_max: float = 0.75
+    track_zone_y_min: float = 0.35
+
 
 settings = Settings()

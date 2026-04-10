@@ -81,7 +81,7 @@ export class TrainingAssetsController {
   }
 
   @Post('train')
-  @ApiOperation({ summary: 'Start YOLOv8 fine-tuning run' })
+  @ApiOperation({ summary: 'Start YOLO26 fine-tuning run' })
   startTraining(@Body() dto: StartTrainingDto, @CurrentUser() user: User) {
     requireOperator(user);
     return this.trainingAssetsService.startTraining(callerRole(user), user.id, dto.epochs ?? 50);

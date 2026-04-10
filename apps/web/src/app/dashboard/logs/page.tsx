@@ -26,29 +26,29 @@ interface ActionMeta {
 }
 
 const ACTION_META: Record<string, ActionMeta> = {
-  USER_LOGIN:          { label: 'Logowanie',             color: 'text-green-400 bg-green-500/10 border-green-500/20',   group: 'auth' },
-  USER_LOGIN_OAUTH:    { label: 'Logowanie OAuth',        color: 'text-green-400 bg-green-500/10 border-green-500/20',   group: 'auth' },
-  USER_REGISTER:       { label: 'Rejestracja',            color: 'text-blue-400 bg-blue-500/10 border-blue-500/20',      group: 'auth' },
-  USER_REGISTER_OAUTH: { label: 'Rejestracja OAuth',      color: 'text-blue-400 bg-blue-500/10 border-blue-500/20',      group: 'auth' },
-  USER_LOGOUT:         { label: 'Wylogowanie',            color: 'text-gray-400 bg-gray-500/10 border-gray-500/20',      group: 'auth' },
-  LOGIN_FAILED:        { label: 'Błąd logowania',         color: 'text-red-400 bg-red-500/10 border-red-500/20',         group: 'auth' },
-  LOGIN_MFA_PENDING:   { label: 'Oczekuje na OTP',        color: 'text-amber-400 bg-amber-500/10 border-amber-500/20',   group: 'mfa' },
-  MFA_LOGIN_SUCCESS:   { label: 'Weryfikacja OTP — OK',   color: 'text-green-400 bg-green-500/10 border-green-500/20',   group: 'mfa' },
-  MFA_CODE_FAILED:     { label: 'Błędny kod OTP',         color: 'text-red-400 bg-red-500/10 border-red-500/20',         group: 'mfa' },
-  MFA_SETUP_STARTED:   { label: 'Konfiguracja MFA',       color: 'text-amber-400 bg-amber-500/10 border-amber-500/20',   group: 'mfa' },
-  MFA_ENABLED:         { label: 'MFA włączone',           color: 'text-green-400 bg-green-500/10 border-green-500/20',   group: 'mfa' },
-  MFA_DISABLED:        { label: 'MFA wyłączone',          color: 'text-orange-400 bg-orange-500/10 border-orange-500/20', group: 'mfa' },
-  USER_APPROVED:       { label: 'Konto zatwierdzone',     color: 'text-green-400 bg-green-500/10 border-green-500/20',   group: 'user-mgmt' },
-  USER_BLOCKED:        { label: 'Konto zablokowane',      color: 'text-red-400 bg-red-500/10 border-red-500/20',         group: 'user-mgmt' },
-  USER_UNBLOCKED:      { label: 'Konto odblokowane',      color: 'text-green-400 bg-green-500/10 border-green-500/20',   group: 'user-mgmt' },
-  USER_GRANTED_ADMIN:  { label: 'Rola admina nadana',     color: 'text-purple-400 bg-purple-500/10 border-purple-500/20', group: 'user-mgmt' },
-  USER_REVOKED_ADMIN:  { label: 'Rola admina cofnięta',   color: 'text-orange-400 bg-orange-500/10 border-orange-500/20', group: 'user-mgmt' },
-  VIDEO_UPLOAD:        { label: 'Wgranie pliku',          color: 'text-sky-400 bg-sky-500/10 border-sky-500/20',         group: 'video' },
-  VIDEO_LINK_ADD:      { label: 'Dodanie linku',          color: 'text-sky-400 bg-sky-500/10 border-sky-500/20',         group: 'video' },
-  VIDEO_APPROVE:       { label: 'Nagranie zatwierdzone',  color: 'text-green-400 bg-green-500/10 border-green-500/20',   group: 'video' },
-  VIDEO_REJECT:        { label: 'Nagranie odrzucone',     color: 'text-red-400 bg-red-500/10 border-red-500/20',         group: 'video' },
-  VIDEO_UPDATE:        { label: 'Edycja nagrania',        color: 'text-amber-400 bg-amber-500/10 border-amber-500/20',   group: 'video' },
-  VIDEO_DELETE:        { label: 'Usunięcie nagrania',     color: 'text-red-400 bg-red-500/10 border-red-500/20',         group: 'video' },
+  LOGOWANIE:          { label: 'Logowanie',             color: 'text-green-400 bg-green-500/10 border-green-500/20',   group: 'auth' },
+  LOGOWANIE_OAUTH:    { label: 'Logowanie OAuth',        color: 'text-green-400 bg-green-500/10 border-green-500/20',   group: 'auth' },
+  REJESTRACJA:       { label: 'Rejestracja',            color: 'text-blue-400 bg-blue-500/10 border-blue-500/20',      group: 'auth' },
+  REJESTRACJA_OAUTH: { label: 'Rejestracja OAuth',      color: 'text-blue-400 bg-blue-500/10 border-blue-500/20',      group: 'auth' },
+  WYLOGOWANIE:         { label: 'Wylogowanie',            color: 'text-gray-400 bg-gray-500/10 border-gray-500/20',      group: 'auth' },
+  LOGOWANIE_NIEUDANE:        { label: 'Błąd logowania',         color: 'text-red-400 bg-red-500/10 border-red-500/20',         group: 'auth' },
+  LOGOWANIE_OTP_OCZEKUJE:   { label: 'Oczekuje na OTP',        color: 'text-amber-400 bg-amber-500/10 border-amber-500/20',   group: 'mfa' },
+  OTP_WERYFIKACJA_OK:   { label: 'Weryfikacja OTP — OK',   color: 'text-green-400 bg-green-500/10 border-green-500/20',   group: 'mfa' },
+  OTP_KOD_BLEDNY:     { label: 'Błędny kod OTP',         color: 'text-red-400 bg-red-500/10 border-red-500/20',         group: 'mfa' },
+  MFA_KONFIGURACJA:   { label: 'Konfiguracja MFA',       color: 'text-amber-400 bg-amber-500/10 border-amber-500/20',   group: 'mfa' },
+  MFA_WLACZONE:         { label: 'MFA włączone',           color: 'text-green-400 bg-green-500/10 border-green-500/20',   group: 'mfa' },
+  MFA_WYLACZONE:        { label: 'MFA wyłączone',          color: 'text-orange-400 bg-orange-500/10 border-orange-500/20', group: 'mfa' },
+  KONTO_ZATWIERDZONE:       { label: 'Konto zatwierdzone',     color: 'text-green-400 bg-green-500/10 border-green-500/20',   group: 'user-mgmt' },
+  KONTO_ZABLOKOWANE:        { label: 'Konto zablokowane',      color: 'text-red-400 bg-red-500/10 border-red-500/20',         group: 'user-mgmt' },
+  KONTO_ODBLOKOWANE:      { label: 'Konto odblokowane',      color: 'text-green-400 bg-green-500/10 border-green-500/20',   group: 'user-mgmt' },
+  KONTO_ADMIN_NADANO:  { label: 'Rola admina nadana',     color: 'text-purple-400 bg-purple-500/10 border-purple-500/20', group: 'user-mgmt' },
+  KONTO_ADMIN_COFNIETO:  { label: 'Rola admina cofnięta',   color: 'text-orange-400 bg-orange-500/10 border-orange-500/20', group: 'user-mgmt' },
+  WIDEO_WGRANO:        { label: 'Wgranie pliku',          color: 'text-sky-400 bg-sky-500/10 border-sky-500/20',         group: 'video' },
+  WIDEO_LINK_DODANO:      { label: 'Dodanie linku',          color: 'text-sky-400 bg-sky-500/10 border-sky-500/20',         group: 'video' },
+  WIDEO_ZATWIERDZONE:       { label: 'Nagranie zatwierdzone',  color: 'text-green-400 bg-green-500/10 border-green-500/20',   group: 'video' },
+  WIDEO_ODRZUCONE:        { label: 'Nagranie odrzucone',     color: 'text-red-400 bg-red-500/10 border-red-500/20',         group: 'video' },
+  WIDEO_EDYTOWANO:        { label: 'Edycja nagrania',        color: 'text-amber-400 bg-amber-500/10 border-amber-500/20',   group: 'video' },
+  WIDEO_USUNIETO:        { label: 'Usunięcie nagrania',     color: 'text-red-400 bg-red-500/10 border-red-500/20',         group: 'video' },
 };
 
 const GROUP_FILTERS: { value: ActionGroup | 'all'; label: string }[] = [
@@ -78,7 +78,7 @@ function LogIcon({ action }: { action: string }) {
   const group = ACTION_META[action]?.group ?? 'other';
   const s = 'h-4 w-4';
 
-  if (action === 'LOGIN_FAILED' || action === 'MFA_CODE_FAILED') {
+  if (action === 'LOGOWANIE_NIEUDANE' || action === 'OTP_KOD_BLEDNY') {
     return (
       <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-red-500/10">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={`${s} text-red-400`}>
@@ -87,7 +87,7 @@ function LogIcon({ action }: { action: string }) {
       </span>
     );
   }
-  if (action === 'USER_LOGOUT') {
+  if (action === 'WYLOGOWANIE') {
     return (
       <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-700/40">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={`${s} text-gray-400`}>

@@ -354,7 +354,15 @@ export default function VideoDetailPage() {
               <a href={video.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-amber-400 hover:underline">{video.sourceUrl}</a>
             </div>
           ) : (
-            <video src={`${API}/videos/${video.id}/stream`} controls preload="metadata" className="h-full w-full object-contain" />
+            <video
+              key={video.id}
+              controls
+              preload="metadata"
+              className="h-full w-full object-contain"
+            >
+              <source src={`${API}/videos/${video.id}/stream`} />
+              Twoja przeglądarka nie obsługuje odtwarzacza wideo.
+            </video>
           )}
         </div>
       </div>

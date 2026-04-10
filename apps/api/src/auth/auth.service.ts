@@ -56,7 +56,7 @@ export class AuthService {
         approvedAt: null,
       },
     });
-    await this.logs.log('USER_REGISTER', `Nowe konto: ${user.email} — oczekuje na zatwierdzenie`, user.id, user.id, 'USER');
+    await this.logs.log('REJESTRACJA', `Nowe konto: ${user.email} — oczekuje na zatwierdzenie`, user.id, user.id, 'USER');
     return user;
   }
 
@@ -129,7 +129,7 @@ export class AuthService {
       encoding: 'base32',
     });
     const qrCodeDataUrl = await qrcode.toDataURL(otpAuthUrl);
-    await this.logs.log('MFA_SETUP_STARTED', `Rozpoczęto konfigurację MFA dla: ${user.email}`, user.id, user.id, 'USER');
+    await this.logs.log('MFA_KONFIGURACJA', `Rozpoczęto konfigurację MFA dla: ${user.email}`, user.id, user.id, 'USER');
     return { secret, qrCodeDataUrl };
   }
 
@@ -140,7 +140,7 @@ export class AuthService {
     const valid = speakeasy.totp.verify({ secret: user.mfaSecret, encoding: 'base32', token: code });
     if (!valid) throw new UnauthorizedException('Invalid TOTP code');
     await db.update({ where: { id: userId }, data: { mfaEnabled: true } });
-    await this.logs.log('MFA_ENABLED', `Włączono weryfikację dwuetapową (MFA) dla: ${user.email}`, userId, userId, 'USER');
+    await this.logs.log('MFA_WLACZONE', `Włączono weryfikację dwuetapową (MFA) dla: ${user.email}`, userId, userId, 'USER');
   }
 
   async disableMfa(userId: string, code: string): Promise<void> {
@@ -150,7 +150,7 @@ export class AuthService {
     const valid = speakeasy.totp.verify({ secret: user.mfaSecret, encoding: 'base32', token: code });
     if (!valid) throw new UnauthorizedException('Invalid TOTP code');
     await db.update({ where: { id: userId }, data: { mfaEnabled: false, mfaSecret: null } });
-    await this.logs.log('MFA_DISABLED', `Wyłączono weryfikację dwuetapową (MFA) dla: ${user.email}`, userId, userId, 'USER');
+    await this.logs.log('MFA_WYLACZONE', `Wyłączono weryfikację dwuetapową (MFA) dla: ${user.email}`, userId, userId, 'USER');
   }
 
   signPartialToken(userId: string): string {
@@ -279,7 +279,7 @@ export class AuthService {
 
     if (account) {
       await this.logs.log(
-        'USER_LOGIN_OAUTH',
+        'LOGOWANIE_OAUTH',
         `Logowanie OAuth (${profile.provider}): ${account.user.email}`,
         account.user.id,
         account.user.id,
@@ -318,7 +318,7 @@ export class AuthService {
 
     if (isNewUser) {
       await this.logs.log(
-        'USER_REGISTER_OAUTH',
+        'REJESTRACJA_OAUTH',
         `Rejestracja przez OAuth (${profile.provider}): ${user.email} — oczekuje na zatwierdzenie`,
         user.id,
         user.id,
@@ -326,7 +326,7 @@ export class AuthService {
       );
     } else {
       await this.logs.log(
-        'USER_LOGIN_OAUTH',
+        'LOGOWANIE_OAUTH',
         `Powiązano konto OAuth (${profile.provider}): ${user.email}`,
         user.id,
         user.id,
@@ -361,7 +361,7 @@ export class AuthService {
     });
 
     await this.logs.log(
-      'USER_APPROVED',
+      'KONTO_ZATWIERDZONE',
       `Administrator ${admin.email} zatwierdził konto: ${user.email}`,
       adminUserId,
       userId,
@@ -400,7 +400,7 @@ export class AuthService {
     });
 
     await this.logs.log(
-      'USER_GRANTED_ADMIN',
+      'KONTO_ADMIN_NADANO',
       `Superadmin ${admin.email} nadał rolę administratora: ${user.email}`,
       requestUserId,
       userId,
@@ -428,7 +428,7 @@ export class AuthService {
 
     const isSelf = requestUserId === userId;
     await this.logs.log(
-      'USER_REVOKED_ADMIN',
+      'KONTO_ADMIN_COFNIETO',
       isSelf
         ? `Superadmin ${admin.email} cofnął sobie rolę administratora`
         : `Superadmin ${admin.email} cofnął rolę administratora: ${user.email}`,
@@ -453,7 +453,7 @@ export class AuthService {
     });
 
     await this.logs.log(
-      'USER_BLOCKED',
+      'KONTO_ZABLOKOWANE',
       `Administrator ${currentUser.email} zablokował konto: ${user.email}`,
       requestUserId,
       userId,
@@ -476,7 +476,7 @@ export class AuthService {
     });
 
     await this.logs.log(
-      'USER_UNBLOCKED',
+      'KONTO_ODBLOKOWANE',
       `Administrator ${currentUser.email} odblokował konto: ${user.email}`,
       requestUserId,
       userId,

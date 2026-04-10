@@ -7,6 +7,7 @@ from .tracker import CentroidTracker
 
 FRAME_SKIP = int(os.getenv("DETECTION_FRAME_SKIP", "5"))
 CONF_THRESHOLD = float(os.getenv("DETECTION_CONFIDENCE_THRESHOLD", "0.45"))
+VIOLATION_STREAK_REQUIRED = 3
 
 
 def analyze(video_path: str) -> list[FrameResult]:
@@ -21,6 +22,8 @@ def analyze(video_path: str) -> list[FrameResult]:
     tracker = CentroidTracker()
     results: list[FrameResult] = []
     frame_idx = 0
+    prev_barrier_state = "unknown"
+    violation_streak: dict[str, int] = {}
 
     while True:
         ret, frame = cap.read()
@@ -33,17 +36,31 @@ def analyze(video_path: str) -> list[FrameResult]:
             barrier = context.detect_barrier(frame)
             weather = context.estimate_weather(frame)
             time_of_day = context.estimate_time_of_day(frame)
-            violation = safety.evaluate(tracked, barrier, tracker)
+
+            raw_violation = safety.evaluate(tracked, barrier, tracker, prev_barrier_state)
+
+            confirmed_violation: str | None = None
+            if raw_violation:
+                violation_streak[raw_violation] = violation_streak.get(raw_violation, 0) + 1
+                if violation_streak[raw_violation] >= VIOLATION_STREAK_REQUIRED:
+                    confirmed_violation = raw_violation
+                for key in list(violation_streak):
+                    if key != raw_violation:
+                        violation_streak[key] = 0
+            else:
+                violation_streak.clear()
 
             results.append(FrameResult(
                 frameIndex=frame_idx,
                 timestampMs=(frame_idx / fps) * 1000.0,
-                violation=violation,
+                violation=confirmed_violation,
                 boxes=tracked,
                 weather=weather,
                 timeOfDay=time_of_day,
                 barrierState=barrier,
             ))
+
+            prev_barrier_state = barrier
 
         frame_idx += 1
 

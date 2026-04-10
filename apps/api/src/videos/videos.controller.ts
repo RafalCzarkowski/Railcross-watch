@@ -28,6 +28,9 @@ class BulkActionDto {
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { createReadStream, existsSync, statSync } from 'fs';
+import * as ffmpeg from 'fluent-ffmpeg';
+
+const BROWSER_NATIVE_MIME = new Set(['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime']);
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '@prisma/client';
@@ -125,7 +128,27 @@ export class VideosController {
   @Get(':id/stream')
   @ApiOperation({ summary: 'Stream video file (FILE type only)' })
   async stream(@Param('id') id: string, @CurrentUser() user: User, @Req() req: FastifyRequest, @Res() reply: FastifyReply) {
-    const filePath = await this.videosService.getFilePath(id, user.id, callerRole(user));
+    const { path: filePath, mimetype } = await this.videosService.getFilePath(id, user.id, callerRole(user));
+
+    if (!BROWSER_NATIVE_MIME.has(mimetype)) {
+      reply
+        .header('Content-Type', 'video/mp4')
+        .header('Cache-Control', 'no-cache')
+        .header('X-Original-Format', mimetype);
+      const proc = (ffmpeg as any)(filePath)
+        .outputOptions([
+          '-movflags frag_keyframe+empty_moov+faststart',
+          '-c:v libx264',
+          '-preset veryfast',
+          '-crf 23',
+          '-c:a aac',
+          '-b:a 128k',
+        ])
+        .format('mp4')
+        .on('error', () => {});
+      return reply.send(proc.pipe());
+    }
+
     const stat = statSync(filePath);
     const fileSize = stat.size;
     const range = req.headers['range'];
@@ -134,17 +157,24 @@ export class VideosController {
       const [startStr, endStr] = range.replace(/bytes=/, '').split('-');
       const start = parseInt(startStr, 10);
       const end = endStr ? parseInt(endStr, 10) : fileSize - 1;
+      if (isNaN(start) || isNaN(end) || start < 0 || end >= fileSize || start > end) {
+        reply.status(416).header('Content-Range', `bytes */${fileSize}`).send();
+        return;
+      }
       const chunkSize = end - start + 1;
       reply
         .status(206)
         .header('Content-Range', `bytes ${start}-${end}/${fileSize}`)
         .header('Accept-Ranges', 'bytes')
         .header('Content-Length', chunkSize)
-        .header('Content-Type', 'video/mp4');
+        .header('Content-Type', mimetype);
       return reply.send(createReadStream(filePath, { start, end }));
     }
 
-    reply.header('Content-Length', fileSize).header('Content-Type', 'video/mp4');
+    reply
+      .header('Content-Length', fileSize)
+      .header('Content-Type', mimetype)
+      .header('Accept-Ranges', 'bytes');
     return reply.send(createReadStream(filePath));
   }
 

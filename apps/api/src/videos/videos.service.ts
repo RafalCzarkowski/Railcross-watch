@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -90,7 +91,7 @@ export class VideosService {
   }
 
   private async assertAccess(videoId: string, callerId: string, callerRole: CallerRole) {
-    const video = await this.db.crossingVideo.findUnique({ where: { id: videoId } });
+    const video = await this.db.crossingVideo.findUnique({ where: { id: videoId }, include: VIDEO_INCLUDE });
     if (!video) throw new NotFoundException('Video not found');
     if (!isOperator(callerRole) && video.uploadedById !== callerId) {
       throw new ForbiddenException('Access denied');
@@ -118,7 +119,15 @@ export class VideosService {
       bytesWritten += chunk.length;
       if (bytesWritten > MAX_BYTES) readable.destroy(new Error('File too large'));
     });
-    await pipeline(readable, ws);
+    try {
+      await pipeline(readable, ws);
+    } catch (err: any) {
+      try { await unlink(filePath); } catch { /* already gone */ }
+      if (err.code === 'ERR_STREAM_PREMATURE_CLOSE') {
+        throw new BadRequestException('Przesyłanie zostało przerwane — połączenie zamknięte przez klienta');
+      }
+      throw err;
+    }
 
     const approvalStatus = isOperator(callerRole) ? 'APPROVED' : 'PENDING';
 
@@ -141,7 +150,7 @@ export class VideosService {
     this.generateThumbnail(filePath, video.id);
 
     await this.log(
-      'VIDEO_UPLOAD',
+      'WIDEO_WGRANO',
       `Wgrano nagranie "${file.filename}" (${approvalStatus === 'APPROVED' ? 'auto-zatwierdzone' : 'oczekuje na zatwierdzenie'})`,
       uploadedById,
       video.id,
@@ -178,7 +187,7 @@ export class VideosService {
 
     const typeLabel = dto.sourceType === 'YOUTUBE' ? 'YouTube' : 'Stream';
     await this.log(
-      'VIDEO_LINK_ADD',
+      'WIDEO_LINK_DODANO',
       `Dodano link ${typeLabel}: "${dto.title ?? dto.url}" (${approvalStatus === 'APPROVED' ? 'auto-zatwierdzone' : 'oczekuje na zatwierdzenie'})`,
       uploadedById,
       video.id,
@@ -281,7 +290,7 @@ export class VideosService {
     await this.redis.client.lpush('railcross:queue', job);
 
     const label = video.title ?? video.originalName ?? id;
-    await this.log('VIDEO_ANALYSIS_QUEUED', `Zlecono analizę AI dla nagrania "${label}"`, callerId, id);
+    await this.log('WIDEO_ANALIZA_KOLEJKA', `Zlecono analizę AI dla nagrania "${label}"`, callerId, id);
 
     return updated;
   }
@@ -319,7 +328,7 @@ export class VideosService {
     });
 
     const label = video.title ?? video.originalName ?? id;
-    await this.log('VIDEO_APPROVE', `Zatwierdzono nagranie "${label}"`, callerId, id);
+    await this.log('WIDEO_ZATWIERDZONE', `Zatwierdzono nagranie "${label}"`, callerId, id);
     this.notifications.notify(video.uploadedById, 'VIDEO_APPROVED', `Twoje nagranie "${label}" zostało zatwierdzone`, id);
 
     return updated;
@@ -336,7 +345,7 @@ export class VideosService {
     });
 
     const label = video.title ?? video.originalName ?? id;
-    await this.log('VIDEO_REJECT', `Odrzucono nagranie "${label}"`, callerId, id);
+    await this.log('WIDEO_ODRZUCONE', `Odrzucono nagranie "${label}"`, callerId, id);
     this.notifications.notify(video.uploadedById, 'VIDEO_REJECTED', `Twoje nagranie "${label}" zostało odrzucone`, id);
 
     return updated;
@@ -351,7 +360,7 @@ export class VideosService {
       include: VIDEO_INCLUDE,
     });
 
-    await this.log('VIDEO_UPDATE', `Zaktualizowano metadane nagrania "${updated.title ?? updated.originalName ?? id}"`, callerId, id);
+    await this.log('WIDEO_EDYTOWANO', `Zaktualizowano metadane nagrania "${updated.title ?? updated.originalName ?? id}"`, callerId, id);
 
     return updated;
   }
@@ -365,15 +374,15 @@ export class VideosService {
     }
     await this.db.crossingVideo.delete({ where: { id } });
 
-    await this.log('VIDEO_DELETE', `Usunięto nagranie "${label}"`, callerId, id);
+    await this.log('WIDEO_USUNIETO', `Usunięto nagranie "${label}"`, callerId, id);
   }
 
-  async getFilePath(id: string, callerId: string, callerRole: CallerRole): Promise<string> {
+  async getFilePath(id: string, callerId: string, callerRole: CallerRole): Promise<{ path: string; mimetype: string }> {
     const video = await this.assertAccess(id, callerId, callerRole);
     if (video.sourceType !== 'FILE' || !video.path) {
       throw new ForbiddenException('Not a file-based video');
     }
-    return video.path;
+    return { path: video.path, mimetype: (video as any).mimetype ?? 'video/mp4' };
   }
 
   async getThumbnailPath(id: string, callerId: string, callerRole: CallerRole): Promise<string | null> {
@@ -422,7 +431,7 @@ export class VideosService {
     }
 
     if (action === 'delete' && succeeded.length > 0) {
-      await this.log('VIDEO_DELETE', `Usunięto masowo ${succeeded.length} nagrań`, callerId);
+      await this.log('WIDEO_USUNIETO', `Usunięto masowo ${succeeded.length} nagrań`, callerId);
     }
 
     return { succeeded, failed };

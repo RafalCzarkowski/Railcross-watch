@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? '/api';
+const UPLOAD_API = process.env.NEXT_PUBLIC_DIRECT_API_URL ?? API;
 
 interface UploadedBy { id: string; name: string | null; email: string; }
 interface TrainingAsset {
@@ -115,7 +116,7 @@ export default function TrainingPage() {
 
     await new Promise<void>((resolve) => {
       const xhr = new XMLHttpRequest();
-      xhr.open('POST', `${API}/training-assets/upload`);
+      xhr.open('POST', `${UPLOAD_API}/training-assets/upload`);
       xhr.withCredentials = true;
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) setUploadProgress(Math.round((e.loaded / e.total) * 100));
@@ -212,7 +213,7 @@ export default function TrainingPage() {
   }
 
   async function handleTrain() {
-    if (!confirm(`Uruchomić fine-tuning YOLOv8 (${epochs} epok)?`)) return;
+    if (!confirm(`Uruchomić fine-tuning YOLO26 (${epochs} epok)?`)) return;
     setActionLoading('train');
     const res = await fetch(`${API}/training-assets/train`, {
       method: 'POST',
@@ -455,7 +456,7 @@ export default function TrainingPage() {
       <div className="rounded-xl border border-gray-800 bg-gray-900 p-5 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-sm font-semibold text-white">Fine-tuning modelu YOLOv8</h2>
+            <h2 className="text-sm font-semibold text-white">Fine-tuning modelu YOLO26</h2>
             <p className="text-xs text-gray-500 mt-0.5">Douczy model na wyekstrahowanych klatkach ze wszystkich materiałów.</p>
           </div>
           <div className="flex items-center gap-2">

@@ -10,6 +10,7 @@ class BBox:
     h: float
     conf: float
     track_id: int | None = None
+    velocity: float = 0.0
 
     def as_dict(self) -> dict:
         return {
@@ -19,7 +20,18 @@ class BBox:
             "w": round(self.w, 4),
             "h": round(self.h, 4),
             "conf": round(self.conf, 3),
+            "velocity": round(self.velocity, 4),
         }
+
+
+VIOLATION_TYPES = {
+    "BARRIER_VIOLATION",
+    "RED_LIGHT_VIOLATION",
+    "PEDESTRIAN_ON_TRACKS",
+    "CYCLIST_ON_TRACKS",
+    "STALLED_ON_TRACKS",
+    "BARRIER_CLOSING_VIOLATION",
+}
 
 
 @dataclass

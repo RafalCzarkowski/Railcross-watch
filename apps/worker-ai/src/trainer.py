@@ -1,4 +1,4 @@
-"""YOLOv8 fine-tuning on extracted training frames."""
+"""YOLO26 fine-tuning on extracted training frames."""
 import json
 import os
 import tempfile
@@ -20,7 +20,7 @@ CLASS_NAMES = [
 
 
 def run_finetuning(run_id: str, epochs: int = 50) -> tuple[str, str]:
-    """Fine-tune YOLOv8 on all extracted frames.
+    """Fine-tune YOLO26 on all extracted frames.
 
     Returns (model_path, metrics_json).
     """

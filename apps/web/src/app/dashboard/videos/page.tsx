@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? '/api';
+const UPLOAD_API = process.env.NEXT_PUBLIC_DIRECT_API_URL ?? API;
 
 type Role = 'SUPERADMIN' | 'ADMIN' | 'USER';
 
@@ -170,8 +171,17 @@ export default function VideosPage() {
 
   async function loadVideos(params?: Record<string, string>) {
     const qs = params && Object.keys(params).length > 0 ? '?' + new URLSearchParams(params).toString() : '';
-    const res = await fetch(`${API}/videos${qs}`, { credentials: 'include' });
-    if (res.ok) setVideos(await res.json());
+    try {
+      const res = await fetch(`${API}/videos${qs}`, { credentials: 'include' });
+      if (res.ok) {
+        setVideos(await res.json());
+      } else {
+        const d = await res.json().catch(() => ({}));
+        showError(`Błąd pobierania nagrań: ${res.status} ${d.message ?? ''}`);
+      }
+    } catch (e) {
+      showError(`Błąd połączenia z API: ${String(e)}`);
+    }
   }
 
   function buildFilterParams() {
@@ -213,6 +223,16 @@ export default function VideosPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, dateFrom, dateTo, analysisStatusFilter, sourceTypeFilter]);
 
+  useEffect(() => {
+    if (!uploading) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = 'Przesyłanie jest w toku. Jeśli opuścisz stronę, plik nie zostanie wgrany.';
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [uploading]);
+
   function showSuccess(msg: string) {
     setSuccessMsg(msg);
     setTimeout(() => setSuccessMsg(''), 4000);
@@ -230,7 +250,7 @@ export default function VideosPage() {
     form.append('file', file);
     await new Promise<void>((resolve) => {
       const xhr = new XMLHttpRequest();
-      xhr.open('POST', `${API}/videos/upload`);
+      xhr.open('POST', `${UPLOAD_API}/videos/upload`);
       xhr.withCredentials = true;
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) setUploadProgress(Math.round((e.loaded / e.total) * 100));
@@ -238,6 +258,12 @@ export default function VideosPage() {
       xhr.onload = () => {
         setUploading(false);
         if (xhr.status < 300) {
+          try {
+            const newVideo = JSON.parse(xhr.responseText);
+            if (newVideo && newVideo.id) {
+              setVideos((prev) => [newVideo, ...prev.filter((v) => v.id !== newVideo.id)]);
+            }
+          } catch { /* response not JSON — will refresh below */ }
           loadVideos(buildFilterParams());
           loadTags();
           showSuccess(isOperator(role) ? 'Nagranie zostało wgrane.' : 'Nagranie zostało przesłane i oczekuje na zatwierdzenie przez administratora.');
@@ -335,8 +361,12 @@ export default function VideosPage() {
         setLinkError(Array.isArray(d.message) ? d.message.join(', ') : (d.message ?? 'Błąd'));
         return;
       }
+      const newVideo = await res.json().catch(() => null);
       setShowLinkModal(false);
       setLinkForm(emptyLinkForm);
+      if (newVideo?.id) {
+        setVideos((prev) => [newVideo, ...prev.filter((v) => v.id !== newVideo.id)]);
+      }
       loadVideos(buildFilterParams());
       loadTags();
       if (!isOperator(role)) showSuccess('Link został dodany i oczekuje na zatwierdzenie przez administratora.');

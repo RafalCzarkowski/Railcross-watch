@@ -92,7 +92,7 @@ export class ReportsService {
         take: 10,
       }),
       this.db.activityLog.count({
-        where: { action: 'LOGIN_FAILED', createdAt: { gte: since7 } },
+        where: { action: 'LOGOWANIE_NIEUDANE', createdAt: { gte: since7 } },
       }),
     ]);
 

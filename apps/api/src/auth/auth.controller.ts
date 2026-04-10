@@ -21,7 +21,7 @@ class UpdateProfileDto {
   name?: string;
 
   @IsOptional()
-  @IsString()
+  @IsUrl({ require_protocol: true })
   avatarUrl?: string;
 }
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -86,20 +86,20 @@ export class AuthController {
     try {
       user = await this.authService.validateLocalUser(dto.email, dto.password);
     } catch (err) {
-      await this.logs.log('LOGIN_FAILED', `Nieudana próba logowania: ${dto.email}`, null, undefined, undefined, { ipAddress: ip, userAgent: ua });
+      await this.logs.log('LOGOWANIE_NIEUDANE', `Nieudana próba logowania: ${dto.email}`, null, undefined, undefined, { ipAddress: ip, userAgent: ua });
       throw err;
     }
 
     if ((user as any).mfaEnabled) {
       const partialToken = this.authService.signPartialToken(user.id);
       reply.setCookie('mfa_token', partialToken, { ...this.authService.getCookieOptions(), maxAge: 300 });
-      await this.logs.log('LOGIN_MFA_PENDING', `Logowanie (krok 1/2) — wymagany kod OTP: ${user.email}`, user.id, user.id, 'USER', { ipAddress: ip, userAgent: ua });
+      await this.logs.log('LOGOWANIE_OTP_OCZEKUJE', `Logowanie (krok 1/2) — wymagany kod OTP: ${user.email}`, user.id, user.id, 'USER', { ipAddress: ip, userAgent: ua });
       return { mfaRequired: true };
     }
 
     const token = this.authService.signToken(user);
     reply.setCookie('access_token', token, this.authService.getCookieOptions());
-    await this.logs.log('USER_LOGIN', `Zalogowano: ${user.email}`, user.id, user.id, 'USER', { ipAddress: ip, userAgent: ua });
+    await this.logs.log('LOGOWANIE', `Zalogowano: ${user.email}`, user.id, user.id, 'USER', { ipAddress: ip, userAgent: ua });
     return { id: user.id, email: user.email, name: user.name };
   }
 
@@ -124,7 +124,7 @@ export class AuthController {
     }
     if ((user as any).mfaEnabled) {
       const partialToken = this.authService.signPartialToken(user.id);
-      await this.logs.log('LOGIN_MFA_PENDING', `Logowanie GitHub (krok 1/2) — wymagany kod OTP: ${user.email}`, user.id, user.id, 'USER');
+      await this.logs.log('LOGOWANIE_OTP_OCZEKUJE', `Logowanie GitHub (krok 1/2) — wymagany kod OTP: ${user.email}`, user.id, user.id, 'USER');
       return reply
         .setCookie('mfa_token', partialToken, { ...this.authService.getCookieOptions(), maxAge: 300 })
         .status(302).header('Location', `${frontendUrl}/auth/mfa`).send();
@@ -154,7 +154,7 @@ export class AuthController {
     }
     if ((user as any).mfaEnabled) {
       const partialToken = this.authService.signPartialToken(user.id);
-      await this.logs.log('LOGIN_MFA_PENDING', `Logowanie Google (krok 1/2) — wymagany kod OTP: ${user.email}`, user.id, user.id, 'USER');
+      await this.logs.log('LOGOWANIE_OTP_OCZEKUJE', `Logowanie Google (krok 1/2) — wymagany kod OTP: ${user.email}`, user.id, user.id, 'USER');
       return reply
         .setCookie('mfa_token', partialToken, { ...this.authService.getCookieOptions(), maxAge: 300 })
         .status(302).header('Location', `${frontendUrl}/auth/mfa`).send();
@@ -180,7 +180,7 @@ export class AuthController {
     }
     const ip = req.ip as string | undefined;
     const ua = req.headers?.['user-agent'] as string | undefined;
-    await this.logs.log('USER_LOGOUT', `Wylogowano: ${user.email}`, user.id, user.id, 'USER', { ipAddress: ip, userAgent: ua });
+    await this.logs.log('WYLOGOWANIE', `Wylogowano: ${user.email}`, user.id, user.id, 'USER', { ipAddress: ip, userAgent: ua });
     reply.clearCookie('access_token', { path: '/' });
   }
 
@@ -289,7 +289,7 @@ export class AuthController {
       try {
         const partial = this.jwtService.decode(mfaToken) as JwtPayload | null;
         if (partial?.sub) {
-          await this.logs.log('MFA_CODE_FAILED', `Nieprawidłowy kod OTP — nieudane logowanie dwuetapowe`, partial.sub, partial.sub, 'USER', { ipAddress: ip, userAgent: ua });
+          await this.logs.log('OTP_KOD_BLEDNY', `Nieprawidłowy kod OTP — nieudane logowanie dwuetapowe`, partial.sub, partial.sub, 'USER', { ipAddress: ip, userAgent: ua });
         }
       } catch { /* ignore decode errors */ }
       throw err;
@@ -297,7 +297,7 @@ export class AuthController {
 
     reply.clearCookie('mfa_token', { path: '/' });
     reply.setCookie('access_token', this.authService.signToken(user), this.authService.getCookieOptions());
-    await this.logs.log('MFA_LOGIN_SUCCESS', `Logowanie przez OTP zakończone sukcesem: ${user.email}`, user.id, user.id, 'USER', { ipAddress: ip, userAgent: ua });
+    await this.logs.log('OTP_WERYFIKACJA_OK', `Logowanie przez OTP zakończone sukcesem: ${user.email}`, user.id, user.id, 'USER', { ipAddress: ip, userAgent: ua });
     return { id: user.id, email: user.email, name: user.name };
   }
 

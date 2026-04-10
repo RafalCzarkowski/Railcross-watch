@@ -91,7 +91,7 @@ export class TrainingAssetsService {
       },
     });
 
-    await this.log('TRAINING_ASSET_UPLOAD', `Wgrano materiał treningowy "${file.filename}"`, uploadedById, asset.id);
+    await this.log('MATERIAL_WGRANO', `Wgrano materiał treningowy "${file.filename}"`, uploadedById, asset.id);
     return asset;
   }
 
@@ -134,7 +134,7 @@ export class TrainingAssetsService {
     if (!asset) throw new NotFoundException('Training asset not found');
     await this.db.trainingAsset.delete({ where: { id } });
     unlink(asset.path, () => {});
-    await this.log('TRAINING_ASSET_DELETE', `Usunięto materiał treningowy "${asset.originalName}"`, callerId);
+    await this.log('MATERIAL_USUNIETO', `Usunięto materiał treningowy "${asset.originalName}"`, callerId);
   }
 
   async enqueueAnalysis(id: string, callerRole: CallerRole, callerId: string) {
@@ -149,7 +149,7 @@ export class TrainingAssetsService {
     await this.redis.client.lpush('railcross:queue', job);
 
     const label = asset.title ?? asset.originalName;
-    await this.log('TRAINING_ASSET_ANALYZE', `Zlecono analizę AI dla materiału treningowego "${label}"`, callerId, id);
+    await this.log('MATERIAL_ANALIZA', `Zlecono analizę AI dla materiału treningowego "${label}"`, callerId, id);
 
     return this.db.trainingAsset.findUnique({
       where: { id },
@@ -169,7 +169,7 @@ export class TrainingAssetsService {
     await this.redis.client.lpush('railcross:queue', job);
 
     const label = asset.title ?? asset.originalName;
-    await this.log('TRAINING_ASSET_EXTRACT', `Zlecono ekstrakcję klatek z materiału treningowego "${label}"`, callerId, id);
+    await this.log('MATERIAL_EKSTRAKCJA', `Zlecono ekstrakcję klatek z materiału treningowego "${label}"`, callerId, id);
 
     return this.db.trainingAsset.findUnique({
       where: { id },
@@ -188,7 +188,7 @@ export class TrainingAssetsService {
     const job = JSON.stringify({ type: 'FINE_TUNE', runId: run.id, epochs });
     await this.redis.client.lpush('railcross:queue', job);
 
-    await this.log('TRAINING_RUN_START', `Uruchomiono fine-tuning modelu YOLOv8 (${epochs} epok, run: ${run.id.slice(0, 8)})`, startedById);
+    await this.log('TRENING_URUCHOMIONY', `Uruchomiono fine-tuning modelu YOLO26 (${epochs} epok, run: ${run.id.slice(0, 8)})`, startedById);
 
     return run;
   }

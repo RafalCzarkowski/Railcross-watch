@@ -2,7 +2,7 @@ import numpy as np
 from .models import BBox
 
 VEHICLE_LABELS = {"car", "truck", "bus", "motorcycle", "bicycle"}
-SPEED_THRESHOLD = 0.008
+SPEED_THRESHOLD = 0.02
 
 
 class CentroidTracker:

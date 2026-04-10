@@ -335,7 +335,7 @@ export default function AnalysisPage() {
       <div>
         <h1 className="text-xl font-bold text-white">Analiza AI</h1>
         <p className="mt-0.5 text-sm text-gray-500">
-          YOLOv8 + OpenCV — detekcja wykroczeń na przejazdach kolejowych
+          YOLO26 + OpenCV — detekcja wykroczeń na przejazdach kolejowych
         </p>
       </div>
 
@@ -347,7 +347,7 @@ export default function AnalysisPage() {
         <div className="text-xs text-sky-300">
           <p className="font-semibold">Jak działa analiza?</p>
           <p className="mt-0.5 text-sky-400/80">
-            Nagranie trafia do kolejki Redis → worker Python (YOLOv8) analizuje każdą klatkę → wykrywa pojazdy, stan szlabanu i sygnalizacji.
+            Nagranie trafia do kolejki Redis → worker Python (YOLO26) analizuje każdą klatkę → wykrywa pojazdy, stan szlabanu i sygnalizacji.
             Wyniki nakładane są na <strong>canvas</strong> zsynchronizowany z playerem wideo — zarówno offline jak i live stream.
           </p>
         </div>

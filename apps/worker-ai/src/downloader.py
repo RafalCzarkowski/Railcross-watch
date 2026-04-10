@@ -1,4 +1,5 @@
 import os
+import tempfile
 import yt_dlp
 from loguru import logger
 
@@ -14,7 +15,7 @@ def get_video_path(job: dict) -> tuple[str, bool]:
 
     if source_type == "YOUTUBE":
         url = job["sourceUrl"]
-        out = f"/tmp/{job['videoId']}.mp4"
+        out = os.path.join(tempfile.gettempdir(), f"{job['videoId']}.mp4")
         logger.info(f"Downloading YouTube video: {url}")
         ydl_opts = {
             "outtmpl": out,
