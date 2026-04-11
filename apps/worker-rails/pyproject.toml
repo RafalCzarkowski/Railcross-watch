@@ -1,7 +1,7 @@
 [project]
-name = "worker-ai"
+name = "worker-rails"
 version = "0.1.0"
-description = "Silnik detekcji wykroczeń na przejazdach kolejowych (YOLOv8 + OpenCV)"
+description = "Silnik detekcji wykroczeń na przejazdach kolejowych (YOLO26 + OpenCV)"
 requires-python = ">=3.11"
 dependencies = [
     "ultralytics>=8.2",

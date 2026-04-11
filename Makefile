@@ -26,6 +26,6 @@ lint:
 test:
 	bun run test
 
-# Testy Python (worker-ai)
+# Testy Python (worker-rails)
 test-worker:
-	cd apps/worker-ai && uv run pytest tests/ -v
+	cd apps/worker-rails && uv run pytest tests/ -v

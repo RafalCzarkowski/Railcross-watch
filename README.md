@@ -4,7 +4,7 @@ RailCross Watch składa się z trzech części:
 
 - `apps/web` — frontend w Next.js
 - `apps/api` — backend w NestJS
-- `apps/worker-ai` — osobny worker do zadań AI
+- `apps/worker-rails` — osobny worker do zadań AI
 
 Poniżej jest opis uruchomienia lokalnie samego `web` i `api`.
 
@@ -28,13 +28,13 @@ Jeżeli korzystasz z Dockera, projekt używa:
 
 ## Szybki start
 
-Jeżeli chcesz uruchomić wszystkie trzy moduły (web, api, worker-ai) jednym poleceniem:
+Jeżeli chcesz uruchomić wszystkie trzy moduły (web, api, worker-rails) jednym poleceniem:
 
 ```bash
 bun install
 bun run dev:services
 bun run db:migrate
-cd apps/worker-ai && python -m venv .venv && .venv/Scripts/activate && pip install -e . && cd ../..
+cd apps/worker-rails && python -m venv .venv && .venv/Scripts/activate && pip install -e . && cd ../..
 bun run dev:all
 ```
 
@@ -42,10 +42,10 @@ Samo `dev:all` odpowiada równoczesnemu uruchomieniu:
 
 ```bash
 bun run dev:app       # web + api (turbo)
-python -m src.main    # worker-ai (z katalogu apps/worker-ai, z aktywnym .venv)
+python -m src.main    # worker-rails (z katalogu apps/worker-rails, z aktywnym .venv)
 ```
 
-Jeżeli worker-ai nie jest potrzebny, wystarczy:
+Jeżeli worker-rails nie jest potrzebny, wystarczy:
 
 ```bash
 bun run dev:app
@@ -98,12 +98,12 @@ Worker-ai to osobny proces w Pythonie. Pobiera zadania z kolejki Redis, analizuj
 
 - Python >= 3.11
 - `ffmpeg` dostępny w PATH (wymagany przez `opencv-python-headless`)
-- Model YOLO — plik `.pt` w katalogu `apps/worker-ai/` lub ścieżka ustawiona przez `YOLO_MODEL_PATH`
+- Model YOLO — plik `.pt` w katalogu `apps/worker-rails/` lub ścieżka ustawiona przez `YOLO_MODEL_PATH`
 
 ### Instalacja środowiska Python
 
 ```bash
-cd apps/worker-ai
+cd apps/worker-rails
 python -m venv .venv
 ```
 
@@ -130,7 +130,7 @@ pip install -e .
 Skopiuj przykład:
 
 ```bash
-copy apps\worker-ai\.env.example apps\worker-ai\.env
+copy apps\worker-rails\.env.example apps\worker-rails\.env
 ```
 
 Najważniejsze pola:
@@ -149,7 +149,7 @@ Najważniejsze pola:
 ### Start workera (standalone)
 
 ```bash
-cd apps/worker-ai
+cd apps/worker-rails
 .venv\Scripts\activate   # Windows
 python -m src.main
 ```
@@ -160,7 +160,7 @@ python -m src.main
 bun run dev:all
 ```
 
-To polecenie startuje równocześnie web, api i worker-ai. Worker uruchamia się z `apps/worker-ai` — środowisko `.venv` musi być wcześniej przygotowane (patrz wyżej).
+To polecenie startuje równocześnie web, api i worker-rails. Worker uruchamia się z `apps/worker-rails` — środowisko `.venv` musi być wcześniej przygotowane (patrz wyżej).
 
 ## Usługi pomocnicze
 

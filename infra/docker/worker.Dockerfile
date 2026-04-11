@@ -4,9 +4,9 @@ WORKDIR /app
 # Instalacja uv
 RUN pip install uv
 
-COPY apps/worker-ai/pyproject.toml ./
+COPY apps/worker-rails/pyproject.toml ./
 # Odkomentuj gdy pojawi się uv.lock:
-# COPY apps/worker-ai/uv.lock ./
+# COPY apps/worker-rails/uv.lock ./
 
 RUN uv sync --no-dev --no-install-project
 
@@ -20,12 +20,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/.venv /app/.venv
-COPY apps/worker-ai/src ./src
+COPY apps/worker-rails/src ./src
 
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 
 # Pobieranie modelu YOLO przy budowaniu obrazu (nano — dla dev/ci)
-RUN python -c "from ultralytics import YOLO; YOLO('yolov8n.pt')"
+RUN python -c "from ultralytics import YOLO; YOLO('yolo26n.pt')"
 
 CMD ["python", "-m", "main"]
