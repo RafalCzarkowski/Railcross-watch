@@ -110,7 +110,7 @@ export class TrainingAssetsController {
   }
 
   @Post(':id/analyze')
-  @ApiOperation({ summary: 'Enqueue AI analysis for training asset' })
+  @ApiOperation({ summary: 'Enqueue analysis for training asset' })
   analyze(@Param('id') id: string, @CurrentUser() user: User) {
     requireOperator(user);
     return this.trainingAssetsService.enqueueAnalysis(id, callerRole(user), user.id);

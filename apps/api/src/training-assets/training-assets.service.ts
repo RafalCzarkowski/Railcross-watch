@@ -149,7 +149,7 @@ export class TrainingAssetsService {
     await this.redis.client.lpush('railcross:queue', job);
 
     const label = asset.title ?? asset.originalName;
-    await this.log('MATERIAL_ANALIZA', `Zlecono analizę AI dla materiału treningowego "${label}"`, callerId, id);
+    await this.log('MATERIAL_ANALIZA', `Zlecono analizę dla materiału treningowego "${label}"`, callerId, id);
 
     return this.db.trainingAsset.findUnique({
       where: { id },

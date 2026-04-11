@@ -68,7 +68,7 @@ const ACTION_LABEL: Record<string, string> = {
   WIDEO_ODRZUCONE:          'Odrzucono nagranie',
   WIDEO_USUNIETO:          'Usunięto nagranie',
   WIDEO_EDYTOWANO:          'Edytowano nagranie',
-  WIDEO_ANALIZA_KOLEJKA: 'Zlecono analizę AI',
+  WIDEO_ANALIZA_KOLEJKA: 'Zlecono analizę',
 };
 
 function formatBytes(b: number) {
@@ -316,7 +316,7 @@ export default function DashboardPage() {
 
             <div className="rounded-xl border border-gray-800 bg-gray-900">
               <div className="flex items-center justify-between border-b border-gray-800 px-5 py-4">
-                <h2 className="text-sm font-semibold text-white">Status analizy AI</h2>
+                <h2 className="text-sm font-semibold text-white">Status analizy</h2>
                 <Link href="/dashboard/analysis" className="text-xs font-medium text-amber-400 hover:text-amber-300">
                   Otwórz analizę →
                 </Link>

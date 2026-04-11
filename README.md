@@ -4,7 +4,7 @@ RailCross Watch składa się z trzech części:
 
 - `apps/web` — frontend w Next.js
 - `apps/api` — backend w NestJS
-- `apps/worker-rails` — osobny worker do zadań AI
+- `apps/worker-rails` — osobny worker do analizy wideo
 
 Poniżej jest opis uruchomienia lokalnie samego `web` i `api`.
 
@@ -90,7 +90,7 @@ Najważniejsze pola:
 - `NEXT_PUBLIC_OAUTH_URL`
 - `NEXT_PUBLIC_TURNSTILE_SITE_KEY`
 
-## Worker AI (YOLO / OpenCV)
+## Worker (YOLO / OpenCV)
 
 Worker-ai to osobny proces w Pythonie. Pobiera zadania z kolejki Redis, analizuje wideo modelem YOLO i odsyła wyniki do API.
 

@@ -86,7 +86,7 @@ function AnalyticsSection({ detectionsJson }: { detectionsJson: string }) {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-sm font-semibold uppercase tracking-widest text-gray-500">Wyniki analizy AI</h2>
+      <h2 className="text-sm font-semibold uppercase tracking-widest text-gray-500">Wyniki analizy</h2>
 
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -386,7 +386,7 @@ export default function VideoDetailPage() {
 
 
       <div className="flex items-center gap-2">
-        <span className="text-xs text-gray-500">Analiza AI:</span>
+        <span className="text-xs text-gray-500">Analiza:</span>
         {{
           PENDING:    <span className="rounded-full border border-gray-700 bg-gray-800 px-2.5 py-0.5 text-xs font-semibold text-gray-400">Oczekuje</span>,
           PROCESSING: <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-400 animate-pulse">Analizuje…</span>,
@@ -401,7 +401,7 @@ export default function VideoDetailPage() {
             }}
             className="ml-auto rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-400 transition hover:bg-amber-500/20"
           >
-            Uruchom analizę AI
+            Uruchom analizę
           </button>
         )}
       </div>

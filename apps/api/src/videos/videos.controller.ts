@@ -96,7 +96,7 @@ export class VideosController {
   }
 
   @Get('queue')
-  @ApiOperation({ summary: 'Get AI analysis queue status (admin only)' })
+  @ApiOperation({ summary: 'Get analysis queue status (admin only)' })
   getQueue(@CurrentUser() user: User) {
     requireOperator(user);
     return this.videosService.getQueue();
@@ -179,7 +179,7 @@ export class VideosController {
   }
 
   @Post(':id/analyze')
-  @ApiOperation({ summary: 'Enqueue video for AI analysis (admin only)' })
+  @ApiOperation({ summary: 'Enqueue video for analysis (admin only)' })
   enqueueAnalysis(@Param('id') id: string, @CurrentUser() user: User) {
     requireOperator(user);
     return this.videosService.enqueueAnalysis(id, user.id, callerRole(user));

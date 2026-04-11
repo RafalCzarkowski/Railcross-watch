@@ -290,7 +290,7 @@ export class VideosService {
     await this.redis.client.lpush('railcross:queue', job);
 
     const label = video.title ?? video.originalName ?? id;
-    await this.log('WIDEO_ANALIZA_KOLEJKA', `Zlecono analizę AI dla nagrania "${label}"`, callerId, id);
+    await this.log('WIDEO_ANALIZA_KOLEJKA', `Zlecono analizę dla nagrania "${label}"`, callerId, id);
 
     return updated;
   }
@@ -312,7 +312,7 @@ export class VideosService {
     });
     if (video && result.status === 'DONE') {
       const label = video.title ?? video.originalName ?? id;
-      this.notifications.notify(video.uploadedById, 'ANALYSIS_DONE', `Analiza AI zakończona dla nagrania "${label}"`, id);
+      this.notifications.notify(video.uploadedById, 'ANALYSIS_DONE', `Analiza zakończona dla nagrania "${label}"`, id);
     }
     return updated;
   }

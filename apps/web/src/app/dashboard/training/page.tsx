@@ -190,7 +190,7 @@ export default function TrainingPage() {
     if (res.ok) {
       const updated = await res.json();
       setAssets((prev) => prev.map((a) => (a.id === id ? updated : a)));
-      showSuccess('Analiza AI zlecona.');
+      showSuccess('Analiza zlecona.');
     } else {
       const d = await res.json().catch(() => ({}));
       showError(d.message ?? 'Błąd zlecania analizy');
@@ -410,7 +410,7 @@ export default function TrainingPage() {
                           disabled={isAnalyzing || asset.analysisStatus === 'PROCESSING'}
                           className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-2.5 py-1 text-xs font-medium text-blue-400 transition hover:bg-blue-500/20 disabled:opacity-40"
                         >
-                          {isAnalyzing ? 'Zlecam…' : 'Analizuj AI'}
+                          {isAnalyzing ? 'Zlecam…' : 'Analizuj'}
                         </button>
                         <button
                           onClick={() => handleExtract(asset.id)}

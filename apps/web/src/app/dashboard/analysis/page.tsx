@@ -333,7 +333,7 @@ export default function AnalysisPage() {
     <div className="space-y-6">
 
       <div>
-        <h1 className="text-xl font-bold text-white">Analiza AI</h1>
+        <h1 className="text-xl font-bold text-white">Analiza</h1>
         <p className="mt-0.5 text-sm text-gray-500">
           YOLO26 + OpenCV — detekcja wykroczeń na przejazdach kolejowych
         </p>
@@ -361,7 +361,7 @@ export default function AnalysisPage() {
                 <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
                 <line x1="3" y1="6" x2="3.01" y2="6" strokeWidth={2.5} /><line x1="3" y1="12" x2="3.01" y2="12" strokeWidth={2.5} /><line x1="3" y1="18" x2="3.01" y2="18" strokeWidth={2.5} />
               </svg>
-              Kolejka AI
+              Kolejka
             </h2>
             <button onClick={loadQueue} className="text-xs text-gray-500 hover:text-white transition">Odśwież</button>
           </div>

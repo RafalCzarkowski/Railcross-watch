@@ -107,7 +107,7 @@ const navItems = [
   },
   {
     href: '/dashboard/analysis',
-    label: 'Analiza AI',
+    label: 'Analiza',
     adminOnly: true,
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="h-5 w-5">

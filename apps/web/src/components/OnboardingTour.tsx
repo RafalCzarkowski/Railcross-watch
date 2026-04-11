@@ -7,7 +7,7 @@ const API = process.env.NEXT_PUBLIC_API_URL ?? '/api';
 const STEPS = [
   {
     title: 'Witaj w RailCross Watch!',
-    body: 'System monitorowania przejazdów kolejowych. Możesz wgrywać nagrania, uruchamiać analizę AI i zarządzać użytkownikami.',
+    body: 'System monitorowania przejazdów kolejowych. Możesz wgrywać nagrania, uruchamiać analizę i zarządzać użytkownikami.',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-10 w-10 text-amber-400">
         <path d="M12 2L2 7l10 5 10-5-10-5z" />
@@ -27,8 +27,8 @@ const STEPS = [
     ),
   },
   {
-    title: 'Analiza AI',
-    body: 'Sekcja "Analiza AI" pozwala przeglądać wyniki analizy nagrań — algorytm YOLO/OpenCV wykrywa obiekty i oznacza je ramkami na nagraniu.',
+    title: 'Analiza',
+    body: 'Sekcja "Analiza" pozwala przeglądać wyniki analizy nagrań — algorytm YOLO/OpenCV wykrywa obiekty i oznacza je ramkami na nagraniu.',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-10 w-10 text-purple-400">
         <rect x="2" y="3" width="20" height="14" rx="2" />
