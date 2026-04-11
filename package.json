@@ -8,6 +8,7 @@
     "db:migrate": "cd apps\\api && node_modules\\.bin\\prisma.exe migrate deploy --schema prisma\\schema.prisma",
     "dev": "turbo run dev",
     "dev:app": "turbo run dev --filter=@railcross/web --filter=@railcross/api",
+    "dev:all": "concurrently \"turbo run dev --filter=@railcross/web --filter=@railcross/api\" \"cd apps/worker-ai && python -m src.main\"",
     "setup:app": "bun install && bun run dev:services && bun run db:migrate",
     "build": "turbo run build",
     "lint": "turbo run lint",
@@ -15,6 +16,7 @@
     "type-check": "turbo run type-check"
   },
   "devDependencies": {
+    "concurrently": "^9.2.1",
     "turbo": "^2.3.3"
   },
   "packageManager": "bun@1.1.42"

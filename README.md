@@ -18,6 +18,7 @@ Web → API → Queue → Worker → Storage → API → Web
 
 - [Bun](https://bun.sh) `>= 1.1`
 - Node.js `>= 20`
+- Python `>= 3.11` z `pip`
 - Docker Desktop albo lokalnie uruchomiony PostgreSQL i Redis
 
 Jeżeli korzystasz z Dockera, projekt używa:
@@ -27,12 +28,26 @@ Jeżeli korzystasz z Dockera, projekt używa:
 
 ## Szybki start
 
-Jeżeli chcesz uruchomić lokalnie frontend i backend, wykonaj:
+Jeżeli chcesz uruchomić wszystkie trzy moduły (web, api, worker-ai) jednym poleceniem:
 
 ```bash
 bun install
 bun run dev:services
 bun run db:migrate
+cd apps/worker-ai && python -m venv .venv && .venv/Scripts/activate && pip install -e . && cd ../..
+bun run dev:all
+```
+
+Samo `dev:all` odpowiada równoczesnemu uruchomieniu:
+
+```bash
+bun run dev:app       # web + api (turbo)
+python -m src.main    # worker-ai (z katalogu apps/worker-ai, z aktywnym .venv)
+```
+
+Jeżeli worker-ai nie jest potrzebny, wystarczy:
+
+```bash
 bun run dev:app
 ```
 
@@ -74,6 +89,78 @@ Najważniejsze pola:
 - `NEXT_PUBLIC_API_URL`
 - `NEXT_PUBLIC_OAUTH_URL`
 - `NEXT_PUBLIC_TURNSTILE_SITE_KEY`
+
+## Worker AI (YOLO / OpenCV)
+
+Worker-ai to osobny proces w Pythonie. Pobiera zadania z kolejki Redis, analizuje wideo modelem YOLO i odsyła wyniki do API.
+
+### Wymagania wstępne
+
+- Python >= 3.11
+- `ffmpeg` dostępny w PATH (wymagany przez `opencv-python-headless`)
+- Model YOLO — plik `.pt` w katalogu `apps/worker-ai/` lub ścieżka ustawiona przez `YOLO_MODEL_PATH`
+
+### Instalacja środowiska Python
+
+```bash
+cd apps/worker-ai
+python -m venv .venv
+```
+
+Windows:
+
+```bash
+.venv\Scripts\activate
+```
+
+Linux / macOS:
+
+```bash
+source .venv/bin/activate
+```
+
+Instalacja zależności:
+
+```bash
+pip install -e .
+```
+
+### Zmienne środowiskowe workera
+
+Skopiuj przykład:
+
+```bash
+copy apps\worker-ai\.env.example apps\worker-ai\.env
+```
+
+Najważniejsze pola:
+
+| Zmienna | Opis | Domyślnie |
+|---------|------|-----------|
+| `REDIS_URL` | Adres Redis | `redis://localhost:6379` |
+| `API_BASE_URL` | Adres API | `http://localhost:3001` |
+| `API_INTERNAL_SECRET` | Sekret do endpointów `/internal` | — |
+| `YOLO_MODEL_PATH` | Ścieżka do pliku `.pt` | `yolo26n.pt` |
+| `UPLOADS_DIR` | Katalog z wgrywanymi wideo | `../../storage/uploads/videos` |
+| `TRACK_ZONE_X_MIN` | Lewa granica strefy torów (0–1) | `0.25` |
+| `TRACK_ZONE_X_MAX` | Prawa granica strefy torów (0–1) | `0.75` |
+| `TRACK_ZONE_Y_MIN` | Górna granica strefy torów (0–1) | `0.35` |
+
+### Start workera (standalone)
+
+```bash
+cd apps/worker-ai
+.venv\Scripts\activate   # Windows
+python -m src.main
+```
+
+### Start wszystkiego naraz
+
+```bash
+bun run dev:all
+```
+
+To polecenie startuje równocześnie web, api i worker-ai. Worker uruchamia się z `apps/worker-ai` — środowisko `.venv` musi być wcześniej przygotowane (patrz wyżej).
 
 ## Usługi pomocnicze
 
